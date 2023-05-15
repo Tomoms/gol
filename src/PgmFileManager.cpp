@@ -17,8 +17,14 @@ filename_{filename}
 		instream >> magic >> rows_ >> cols_;
 	}
 
+	image_data_.resize(rows_, std::vector<unsigned char>{});
+	for (auto& row : image_data_) {
+		row.resize(cols_, 0);
+	}
+
 	{
 		std::ifstream instream(filename.c_str(), std::ios_base::binary);
+		instream.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 		for (auto i = 0UL; i < rows_; i++) {
 			instream.read(reinterpret_cast<char*>(&image_data_[i][0]), cols_);
 		}
@@ -53,17 +59,6 @@ void PgmFileManager::write()
 	for (auto i = 0UL; i < rows_; i++) {
 		outstream.write(reinterpret_cast<const char*>(&image[i][0]), cols_);
 	}
-}
-
-PGM_HOLDER PgmFileManager::read()
-{
-	std::ifstream instream(filename_.c_str(), std::ios_base::binary);
-	instream.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-	PGM_HOLDER image{rows_, std::vector<unsigned char>(cols_, 0)};
-	for (auto i = 0UL; i < rows_; i++) {
-		instream.read(reinterpret_cast<char*>(&image[i][0]), cols_);
-	}
-	return image;
 }
 
 unsigned long PgmFileManager::get_rows()
