@@ -1,3 +1,8 @@
 *.pgm
 out/
 gol
+.cproject
+.kdev4/
+.project
+.settings/
+gol.kdev4
