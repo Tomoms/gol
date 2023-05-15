@@ -10,7 +10,7 @@ cols_{pgm_manager.get_cols()}
 {
 	for (auto i = 0UL; i < rows_; i++) {
 		for (auto j = 0UL; j < cols_; j++) {
-			grid_.emplace_back(Cell{i, j, pgm_manager.get_image_data()[i][j] == 255});
+			grid_.emplace_back(Cell{i, j, pgm_manager.get_image_data()[i][j] == CELL_ALIVE_VALUE});
 		}
 	}
 	populate_neighbors();
@@ -21,10 +21,10 @@ void GameOfLife::populate_neighbors()
 	for (auto& cell : grid_) {
 		unsigned long x = cell.get_x();
 		unsigned long y = cell.get_y();
-		unsigned long prev_row = x - 1 ? x - 1 : rows_ - 1;
-		unsigned long prev_col = y - 1 ? y - 1 : cols_ - 1;
-		unsigned long next_row = x + 1 < rows_ ? x + 1 : 0;
-		unsigned long next_col = y + 1 < cols_ ? y + 1 : 0;
+		unsigned long prev_row = x != 0 ? x - 1 : rows_ - 1;
+		unsigned long prev_col = y != 0 ? y - 1 : cols_ - 1;
+		unsigned long next_row = x != rows_ - 1 ? x + 1 : 0;
+		unsigned long next_col = y != cols_ - 1 ? y + 1 : 0;
 		cell.add_to_neighbors(
 		{
 			std::ref(grid_[coords_to_index(prev_row, prev_col)]),

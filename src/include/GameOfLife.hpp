@@ -5,6 +5,9 @@
 #include <PgmFileManager.hpp>
 #include <Cell.hpp>
 
+#define CELL_ALIVE_VALUE	0
+#define CELL_DEAD_VALUE		255
+
 class GameOfLife
 {
 private:
