@@ -64,8 +64,7 @@ int main(int argc, char **argv)
 		auto evolution_strategy = program.get<unsigned char>("-e");
 		auto snapshotting_period = program.get<unsigned int>("-s");
 		PgmFileManager pgm_manager{filename};
-		const PGM_HOLDER image = pgm_manager.read();
-		GameOfLife game{evolution_strategy, steps, snapshotting_period, image};
+		GameOfLife game{evolution_strategy, steps, snapshotting_period, pgm_manager};
 	} else {
 		std::cout << "Neither -i nor -r were specified, quitting." << std::endl;
 	}

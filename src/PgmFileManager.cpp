@@ -11,9 +11,18 @@ filename_{filename}, rows_{size}, cols_{size}
 PgmFileManager::PgmFileManager(std::string& filename):
 filename_{filename}
 {
-	std::ifstream instream(filename.c_str(), std::ios_base::binary);
-	std::string magic;
-	instream >> magic >> rows_ >> cols_;
+	{
+		std::ifstream instream(filename.c_str(), std::ios_base::binary);
+		std::string magic;
+		instream >> magic >> rows_ >> cols_;
+	}
+
+	{
+		std::ifstream instream(filename.c_str(), std::ios_base::binary);
+		for (auto i = 0UL; i < rows_; i++) {
+			instream.read(reinterpret_cast<char*>(&image_data_[i][0]), cols_);
+		}
+	}
 }
 
 void PgmFileManager::write()
@@ -66,3 +75,9 @@ unsigned long PgmFileManager::get_cols()
 {
 	return cols_;
 }
+
+PGM_HOLDER& PgmFileManager::get_image_data()
+{
+	return image_data_;
+}
+

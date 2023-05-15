@@ -12,6 +12,7 @@ class PgmFileManager
 private:
 	std::string filename_;
 	unsigned long rows_, cols_;
+	PGM_HOLDER image_data_;
 
 public:
 	PgmFileManager(std::string& filename); // open existing file ctor
@@ -20,6 +21,7 @@ public:
 	PGM_HOLDER read();
 	unsigned long get_rows();
 	unsigned long get_cols();
+	PGM_HOLDER& get_image_data();
 };
 
 #endif
