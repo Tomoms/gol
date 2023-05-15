@@ -5,23 +5,23 @@
 #include <PgmFileManager.hpp>
 
 PgmFileManager::PgmFileManager(std::string& filename, unsigned long size):
-filename{filename}, rows{size}, cols{size}
+filename_{filename}, rows_{size}, cols_{size}
 {}
 
 PgmFileManager::PgmFileManager(std::string& filename):
-filename{filename}
+filename_{filename}
 {
 	std::ifstream instream(filename.c_str(), std::ios_base::binary);
 	std::string magic;
-	instream >> magic >> rows >> cols;
+	instream >> magic >> rows_ >> cols_;
 }
 
 void PgmFileManager::write()
 {
-	const std::ofstream outstream{filename.c_str(), std::ios_base::binary | std::ios_base::trunc};
-	outstream << "P5 " << cols << " " << rows << " " << PGM_MAX_VALUE << std::endl;
+	std::ofstream outstream{filename_.c_str(), std::ios_base::binary | std::ios_base::trunc};
+	outstream << "P5 " << cols_ << " " << rows_ << " " << PGM_MAX_VALUE << std::endl;
 
-	PGM_HOLDER image{
+	const PGM_HOLDER image{
 		{
 			{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
 			{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
@@ -41,28 +41,28 @@ void PgmFileManager::write()
 		}
 	};
 
-	for (auto i = 0UL; i < rows; i++) {
-		outstream.write(reinterpret_cast<const char*>(&image[i][0]), cols);
+	for (auto i = 0UL; i < rows_; i++) {
+		outstream.write(reinterpret_cast<const char*>(&image[i][0]), cols_);
 	}
 }
 
 PGM_HOLDER PgmFileManager::read()
 {
-	const std::ifstream instream(filename.c_str(), std::ios_base::binary);
+	std::ifstream instream(filename_.c_str(), std::ios_base::binary);
 	instream.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-	PGM_HOLDER image{rows, std::vector<unsigned char>(cols, 0)};
-	for (auto i = 0UL; i < rows; i++) {
-		instream.read(reinterpret_cast<char*>(&image[i][0]), cols);
+	PGM_HOLDER image{rows_, std::vector<unsigned char>(cols_, 0)};
+	for (auto i = 0UL; i < rows_; i++) {
+		instream.read(reinterpret_cast<char*>(&image[i][0]), cols_);
 	}
 	return image;
 }
 
 unsigned long PgmFileManager::get_rows()
 {
-	return rows;
+	return rows_;
 }
 
 unsigned long PgmFileManager::get_cols()
 {
-	return cols;
+	return cols_;
 }

@@ -7,13 +7,13 @@
 class GameOfLife
 {
 private:
-	unsigned char evolution_strategy;
-	unsigned int steps;
-	unsigned int snapshotting_period;
-	std::vector<bool> grid;
+	unsigned char evolution_strategy_;
+	unsigned int steps_;
+	unsigned int snapshotting_period_;
+	std::vector<bool> grid_;
 
 public:
-	GameOfLife(unsigned char evolution_strategy, unsigned int steps, unsigned int snapshotting_period, PGM_HOLDER& image_data);
+	GameOfLife(unsigned char evolution_strategy, unsigned int steps, unsigned int snapshotting_period, const PGM_HOLDER& image_data);
 };
 
 #endif

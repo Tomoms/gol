@@ -4,14 +4,14 @@
 #include <string>
 
 #define PGM_MAX_VALUE	255
-#define PGM_HOLDER		const std::vector<std::vector<unsigned char>>
+#define PGM_HOLDER		std::vector<std::vector<unsigned char>>
 
 class PgmFileManager
 {
 
 private:
-	std::string filename;
-	unsigned long rows, cols;
+	std::string filename_;
+	unsigned long rows_, cols_;
 
 public:
 	PgmFileManager(std::string& filename); // open existing file ctor
