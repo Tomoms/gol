@@ -1,6 +1,7 @@
 #include <iostream>
 #include <argparse/argparse.hpp>
 #include <PgmFileManager.hpp>
+#include <GameOfLife.hpp>
 
 void setup_parser(argparse::ArgumentParser& program)
 {
@@ -60,8 +61,11 @@ int main(int argc, char **argv)
 	} else if (program["-r"] == true) {
 		auto filename = program.get<std::string>("-f");
 		auto steps = program.get<unsigned int>("-n");
-		auto evolution_type = program.get<unsigned char>("-e");
+		auto evolution_strategy = program.get<unsigned char>("-e");
 		auto snapshotting_period = program.get<unsigned int>("-s");
+		PgmFileManager pgm_manager{filename};
+		PGM_HOLDER image = pgm_manager.read();
+		GameOfLife game{evolution_strategy, steps, snapshotting_period, image};
 	} else {
 		std::cout << "Neither -i nor -r were specified, quitting." << std::endl;
 	}
