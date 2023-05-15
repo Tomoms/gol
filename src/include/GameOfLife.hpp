@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <PgmFileManager.hpp>
+#include <Cell.hpp>
 
 class GameOfLife
 {
@@ -10,10 +11,15 @@ private:
 	unsigned char evolution_strategy_;
 	unsigned int steps_;
 	unsigned int snapshotting_period_;
-	std::vector<bool> grid_;
+	std::vector<Cell> grid_;
+	unsigned long rows_;
+	unsigned long cols_;
+
+	unsigned long coords_to_index(unsigned long x, unsigned long y);
+	void populate_neighbors();
 
 public:
-	GameOfLife(unsigned char evolution_strategy, unsigned int steps, unsigned int snapshotting_period, const PGM_HOLDER& image_data);
+	GameOfLife(unsigned char evolution_strategy, unsigned int steps, unsigned int snapshotting_period, PgmFileManager& pgm_manager);
 };
 
 #endif
