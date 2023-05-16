@@ -42,6 +42,7 @@ void setup_parser(argparse::ArgumentParser& program)
 
 int main(int argc, char **argv)
 {
+	int ret = EXIT_SUCCESS;
 	argparse::ArgumentParser program{"game_of_life"};
 	setup_parser(program);
 
@@ -67,8 +68,8 @@ int main(int argc, char **argv)
 		GameOfLife game{evolution_strategy, steps, snapshotting_period, pgm_manager};
 	} else {
 		std::cerr << "ERROR: Exactly one between -i and -r must be specified. Quitting." << std::endl;
+		ret = EXIT_FAILURE;
 	}
 
-
-	return 0;
+	return ret;
 }
