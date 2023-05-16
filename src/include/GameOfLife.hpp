@@ -8,6 +8,9 @@
 #define CELL_ALIVE_VALUE	0
 #define CELL_DEAD_VALUE		255
 
+#define REFERENCE_TO_NEIGHBOR(x, y) \
+		std::ref(grid_[coords_to_index(x, y)])
+
 class GameOfLife
 {
 private:

@@ -27,14 +27,14 @@ void GameOfLife::populate_neighbors()
 		unsigned long next_col = y != cols_ - 1 ? y + 1 : 0;
 		cell.add_to_neighbors(
 		{
-			std::ref(grid_[coords_to_index(prev_row, prev_col)]),
-			std::ref(grid_[coords_to_index(prev_row, y)]),
-			std::ref(grid_[coords_to_index(prev_row, next_col)]),
-			std::ref(grid_[coords_to_index(x, prev_col)]),
-			std::ref(grid_[coords_to_index(x, next_col)]),
-			std::ref(grid_[coords_to_index(next_row, prev_col)]),
-			std::ref(grid_[coords_to_index(next_row, y)]),
-			std::ref(grid_[coords_to_index(next_row, next_col)]),
+			REFERENCE_TO_NEIGHBOR(prev_row, prev_col),
+			REFERENCE_TO_NEIGHBOR(prev_row, y),
+			REFERENCE_TO_NEIGHBOR(prev_row, next_col),
+			REFERENCE_TO_NEIGHBOR(x, prev_col),
+			REFERENCE_TO_NEIGHBOR(x, next_col),
+			REFERENCE_TO_NEIGHBOR(next_row, prev_col),
+			REFERENCE_TO_NEIGHBOR(next_row, y),
+			REFERENCE_TO_NEIGHBOR(next_row, next_col),
 		}
 		);
 	}
