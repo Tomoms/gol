@@ -53,12 +53,12 @@ int main(int argc, char **argv)
 		std::exit(1);
 	}
 
-	if (program["-i"] == true) {
+	if (program["-i"] == true && program["-r"] == false) {
 		auto filename = program.get<std::string>("-f");
 		auto size = program.get<unsigned long>("-k");
 		PgmFileManager pgm_manager{filename, size};
 		pgm_manager.write();
-	} else if (program["-r"] == true) {
+	} else if (program["-r"] == true && program["-i"] == false) {
 		auto filename = program.get<std::string>("-f");
 		auto steps = program.get<unsigned int>("-n");
 		auto evolution_strategy = program.get<unsigned char>("-e");
@@ -66,7 +66,7 @@ int main(int argc, char **argv)
 		PgmFileManager pgm_manager{filename};
 		GameOfLife game{evolution_strategy, steps, snapshotting_period, pgm_manager};
 	} else {
-		std::cout << "Neither -i nor -r were specified, quitting." << std::endl;
+		std::cerr << "ERROR: Exactly one between -i and -r must be specified. Quitting." << std::endl;
 	}
 
 
