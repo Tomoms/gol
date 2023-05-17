@@ -18,7 +18,7 @@ public:
 	unsigned long get_x() const;
 	unsigned long get_y() const;
 	bool is_alive() const;
-	bool becomes_alive() const;
+	bool is_alive_after_evolution() const;
 	void set_alive(bool alive);
 	friend std::ostream& operator<<(std::ostream& os, Cell const & cell);
 };

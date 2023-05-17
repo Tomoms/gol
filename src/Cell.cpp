@@ -36,10 +36,10 @@ bool Cell::is_alive() const
 	return alive_;
 }
 
-bool Cell::becomes_alive() const
+bool Cell::is_alive_after_evolution() const
 {
 	unsigned char living_neighbors = std::count_if(neighbors_.begin(), neighbors_.end(), [](Cell& c) { return c.is_alive(); });
-	return living_neighbors == 2 || living_neighbors == 3;
+	return living_neighbors == 3 || (alive_ && living_neighbors == 2);
 }
 
 void Cell::set_alive(bool alive)

@@ -50,8 +50,7 @@ void GameOfLife::evolve()
 		std::vector<Cell> new_grid = grid_;
 		populate_neighbors(new_grid);
 		for (auto i = 0UL; i < grid_.size(); i++) {
-			bool new_status = grid_[i].becomes_alive();
-			if (new_status) std::cout << "Cell " << i << " becomes_alive" << std::endl;
+			bool new_status = grid_[i].is_alive_after_evolution();
 			new_grid[i].set_alive(new_status);
 		}
 		grid_ = std::move(new_grid);
