@@ -8,9 +8,6 @@
 #define CELL_ALIVE_VALUE	0
 #define CELL_DEAD_VALUE		255
 
-#define REFERENCE_TO_NEIGHBOR(x, y) \
-		std::ref(grid_[coords_to_index(x, y)])
-
 class GameOfLife
 {
 private:
@@ -22,10 +19,11 @@ private:
 	unsigned long cols_;
 
 	unsigned long coords_to_index(unsigned long x, unsigned long y);
-	void populate_neighbors();
+	void populate_neighbors(std::vector<Cell>& grid);
 
 public:
 	GameOfLife(unsigned char evolution_strategy, unsigned int steps, unsigned int snapshotting_period, PgmFileManager& pgm_manager);
+	void evolve();
 };
 
 #endif

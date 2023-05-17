@@ -66,6 +66,7 @@ int main(int argc, char **argv)
 		auto snapshotting_period = program.get<unsigned int>("-s");
 		PgmFileManager pgm_manager{filename};
 		GameOfLife game{evolution_strategy, steps, snapshotting_period, pgm_manager};
+		game.evolve();
 	} else {
 		std::cerr << "ERROR: Exactly one between -i and -r must be specified. Quitting." << std::endl;
 		ret = EXIT_FAILURE;
