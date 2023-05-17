@@ -24,6 +24,8 @@ private:
 public:
 	GameOfLife(unsigned char evolution_strategy, unsigned int steps, unsigned int snapshotting_period, PgmFileManager& pgm_manager);
 	void evolve();
+	void print_grid(std::vector<Cell>& grid) const;
+	std::vector<Cell>& get_grid(void);
 };
 
 #endif

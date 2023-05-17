@@ -51,11 +51,29 @@ void GameOfLife::evolve()
 		populate_neighbors(new_grid);
 		for (auto i = 0UL; i < grid_.size(); i++) {
 			bool new_status = grid_[i].becomes_alive();
+			if (new_status) std::cout << "Cell " << i << " becomes_alive" << std::endl;
 			new_grid[i].set_alive(new_status);
 		}
+		grid_ = std::move(new_grid);
 	} else { // ordered
 	}
 }
+
+void GameOfLife::print_grid(std::vector<Cell> &grid) const
+{
+	for (auto i = 0UL; i < rows_; i++) {
+		for (auto j = 0UL; j < cols_; j++) {
+			std::cout << (grid[i * cols_ + j].is_alive() ? "1" : "0") << " ";
+		}
+		std::cout << "\n";
+	}
+}
+
+std::vector<Cell>& GameOfLife::get_grid()
+{
+	return grid_;
+}
+
 
 inline unsigned long GameOfLife::coords_to_index(unsigned long x, unsigned long y)
 {
