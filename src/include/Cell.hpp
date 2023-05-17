@@ -18,6 +18,7 @@ public:
 	unsigned long get_y() const;
 	bool is_alive() const;
 	bool becomes_alive() const;
+	void set_alive(bool alive);
 	friend std::ostream& operator<<(std::ostream& os, Cell const & cell);
 };
 

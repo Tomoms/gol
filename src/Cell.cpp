@@ -36,6 +36,11 @@ bool Cell::becomes_alive() const
 	return living_neighbors == 2 || living_neighbors == 3;
 }
 
+void Cell::set_alive(bool alive)
+{
+	alive_ = alive;
+}
+
 std::ostream& operator<<(std::ostream& os, Cell const & cell)
 {
 	os << "Cell x = " << cell.x_ << "; y = " << cell.y_ << "; is alive: " << cell.alive_ << "\n";
