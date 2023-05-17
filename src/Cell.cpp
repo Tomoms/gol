@@ -15,6 +15,12 @@ void Cell::add_to_neighbors(std::initializer_list<std::reference_wrapper<Cell>> 
 	}
 }
 
+std::vector<std::reference_wrapper<Cell>>& Cell::get_neighbors()
+{
+	return neighbors_;
+}
+
+
 unsigned long Cell::get_x() const
 {
 	return x_;

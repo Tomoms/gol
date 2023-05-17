@@ -14,6 +14,7 @@ private:
 public:
 	Cell(unsigned long x, unsigned long y, bool alive);
 	void add_to_neighbors(std::initializer_list<std::reference_wrapper<Cell>> cells);
+	std::vector<std::reference_wrapper<Cell>>& get_neighbors();
 	unsigned long get_x() const;
 	unsigned long get_y() const;
 	bool is_alive() const;
