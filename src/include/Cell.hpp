@@ -16,6 +16,8 @@ public:
 	void add_to_neighbors(std::initializer_list<std::reference_wrapper<Cell>> cells);
 	unsigned long get_x() const;
 	unsigned long get_y() const;
+	bool is_alive() const;
+	bool becomes_alive() const;
 	friend std::ostream& operator<<(std::ostream& os, Cell const & cell);
 };
 

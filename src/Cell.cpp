@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <Cell.hpp>
 
 Cell::Cell(unsigned long x, unsigned long y, bool alive):
@@ -22,6 +23,17 @@ unsigned long Cell::get_x() const
 unsigned long Cell::get_y() const
 {
 	return y_;
+}
+
+bool Cell::is_alive() const
+{
+	return alive_;
+}
+
+bool Cell::becomes_alive() const
+{
+	unsigned char living_neighbors = std::count_if(neighbors_.begin(), neighbors_.end(), [](Cell& c) { return c.is_alive(); });
+	return living_neighbors == 2 || living_neighbors == 3;
 }
 
 std::ostream& operator<<(std::ostream& os, Cell const & cell)
