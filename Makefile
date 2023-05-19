@@ -1,5 +1,5 @@
 CC = g++
-CPPFLAGS = -O3 -march=native -Wall -Wextra -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align -Wunused -Woverloaded-virtual --pedantic
+CPPFLAGS = -O3 -march=native -Wall -Wextra -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align -Wunused -Woverloaded-virtual --pedantic -fopenmp
 OUT = out
 SRC = src
 OBJS = $(addprefix $(OUT)/, $(patsubst %.cpp, %.o, $(notdir $(wildcard src/*.cpp))))

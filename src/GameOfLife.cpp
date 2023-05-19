@@ -49,6 +49,7 @@ void GameOfLife::evolve()
 	if (evolution_strategy_) { // static
 		std::vector<Cell> new_grid = grid_;
 		populate_neighbors(new_grid);
+#pragma omp parallel for
 		for (auto i = 0UL; i < grid_.size(); i++) {
 			bool new_status = grid_[i].is_alive_after_evolution();
 			new_grid[i].set_alive(new_status);
