@@ -4,7 +4,7 @@
 #include <string>
 
 #define PGM_MAX_VALUE	255
-#define PGM_HOLDER		std::vector<std::vector<unsigned char>>
+#define PGM_HOLDER		std::vector<unsigned char>
 
 class PgmFileManager
 {

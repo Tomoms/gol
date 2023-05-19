@@ -13,7 +13,7 @@ cols_{pgm_manager.get_cols()}
 {
 	for (auto i = 0UL; i < rows_; i++) {
 		for (auto j = 0UL; j < cols_; j++) {
-			grid_.emplace_back(Cell{i, j, pgm_manager.get_image_data()[i][j] == CELL_ALIVE_VALUE});
+			grid_.emplace_back(Cell{i, j, pgm_manager.get_image_data()[i * cols_ + j] == CELL_ALIVE_VALUE});
 		}
 	}
 	populate_neighbors(grid_);
