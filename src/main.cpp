@@ -102,11 +102,11 @@ int main(int argc, char **argv)
 		auto evolution_strategy = program.get<unsigned char>("-e");
 		auto snapshotting_period = program.get<unsigned int>("-s");
 		if (!snapshotting_period) {
-			snapshotting_period = steps - 1;
+			snapshotting_period = steps;
 		}
 		PgmFileManager pgm_manager{filename};
 		GameOfLife game{evolution_strategy, steps, snapshotting_period, pgm_manager};
-		for (auto i = 0UL; i < steps; i++) {
+		for (auto i = 1UL; i <= steps; i++) {
 			game.evolve();
 			if (i % snapshotting_period == 0) {
 				std::string checkpoint_filename{compute_checkpoint_filename(i)};
