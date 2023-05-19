@@ -2,6 +2,7 @@
 #define PGMFILEMANAGER_H
 
 #include <string>
+#include <Cell.hpp>
 
 #define PGM_MAX_VALUE	255
 #define PGM_HOLDER		std::vector<unsigned char>
@@ -21,6 +22,7 @@ public:
 	unsigned long get_rows();
 	unsigned long get_cols();
 	PGM_HOLDER& get_image_data();
+	static PGM_HOLDER grid_to_image_data(std::vector<Cell>& grid);
 };
 
 #endif

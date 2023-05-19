@@ -60,6 +60,23 @@ void setup_parser(argparse::ArgumentParser& program)
 		.help("snapshotting period");
 }
 
+std::string compute_checkpoint_filename(unsigned long step)
+{
+	std::string suffix{};
+	if (step < 10) {
+		suffix = "0000" + std::to_string(step);
+	} else if (step < 100) {
+		suffix = "000" + std::to_string(step);
+	} else if (step < 1000) {
+		suffix = "00" + std::to_string(step);
+	} else if (step < 10000) {
+		suffix = "0" + std::to_string(step);
+	} else {
+		suffix = std::to_string(step);
+	}
+	return "snapshot_" + suffix;
+}
+
 int main(int argc, char **argv)
 {
 	int ret = EXIT_SUCCESS;
@@ -92,7 +109,9 @@ int main(int argc, char **argv)
 		for (auto i = 0UL; i < steps; i++) {
 			game.evolve();
 			if (i % snapshotting_period == 0) {
-				// save a dump
+				std::string checkpoint_filename{compute_checkpoint_filename(i)};
+				PgmFileManager checkpoint_file_mananger{checkpoint_filename, pgm_manager.get_rows()};
+				checkpoint_file_mananger.write(PgmFileManager::grid_to_image_data(game.get_grid()));
 			}
 		}
 	} else {

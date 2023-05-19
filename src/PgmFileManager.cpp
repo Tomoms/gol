@@ -48,3 +48,15 @@ PGM_HOLDER& PgmFileManager::get_image_data()
 	return image_data_;
 }
 
+PGM_HOLDER PgmFileManager::grid_to_image_data(std::vector<Cell>& grid)
+{
+	PGM_HOLDER image_data(grid.size(), 0);
+	for (auto i = 0UL; i < grid.size(); i++) {
+		if (grid[i].is_alive()) {
+			image_data[i] = CELL_ALIVE_VALUE;
+		} else {
+			image_data[i] = CELL_DEAD_VALUE;
+		}
+	}
+	return image_data;
+}
