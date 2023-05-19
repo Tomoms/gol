@@ -64,9 +64,17 @@ int main(int argc, char **argv)
 		auto steps = program.get<unsigned int>("-n");
 		auto evolution_strategy = program.get<unsigned char>("-e");
 		auto snapshotting_period = program.get<unsigned int>("-s");
+		if (!snapshotting_period) {
+			snapshotting_period = steps - 1;
+		}
 		PgmFileManager pgm_manager{filename};
 		GameOfLife game{evolution_strategy, steps, snapshotting_period, pgm_manager};
-		game.evolve();
+		for (auto i = 0UL; i < steps; i++) {
+			game.evolve();
+			if (i % snapshotting_period == 0) {
+				// save a dump
+			}
+		}
 	} else {
 		std::cerr << "ERROR: Exactly one between -i and -r must be specified. Quitting." << std::endl;
 		ret = EXIT_FAILURE;
