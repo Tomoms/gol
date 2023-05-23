@@ -1,6 +1,6 @@
 #include <iostream>
 #include <argparse/argparse.hpp>
-#include <PgmFileManager.hpp>
+#include <PgmUtils.hpp>
 #include <GameOfLife.hpp>
 
 const PGM_HOLDER example_image{
@@ -94,8 +94,7 @@ int main(int argc, char **argv)
 	if (program["-i"] == true && program["-r"] == false) {
 		auto filename = program.get<std::string>("-f");
 		auto size = program.get<unsigned long>("-k");
-		PgmFileManager pgm_manager{filename, size};
-		pgm_manager.write(example_image);
+		// TODO implement generating a new image
 	} else if (program["-r"] == true && program["-i"] == false) {
 		auto filename = program.get<std::string>("-f");
 		auto steps = program.get<unsigned int>("-n");
@@ -104,14 +103,14 @@ int main(int argc, char **argv)
 		if (!snapshotting_period) {
 			snapshotting_period = steps;
 		}
-		PgmFileManager pgm_manager{filename};
-		GameOfLife game{evolution_strategy, steps, snapshotting_period, pgm_manager};
+		const SIZE_HOLDER grid_size = PgmUtils::read_size(filename);
+		const PGM_HOLDER image_data = PgmUtils::read_image_data(filename);
+		GameOfLife game{evolution_strategy, steps, snapshotting_period, grid_size, image_data};
 		for (auto i = 1UL; i <= steps; i++) {
 			game.evolve();
 			if (i % snapshotting_period == 0) {
 				std::string checkpoint_filename{compute_checkpoint_filename(i)};
-				PgmFileManager checkpoint_file_mananger{checkpoint_filename, pgm_manager.get_rows()};
-				checkpoint_file_mananger.write(PgmFileManager::grid_to_image_data(game.get_grid()));
+				PgmUtils::write_image_data(checkpoint_filename, grid_size, PgmUtils::grid_to_image_data(game.get_grid()));
 			}
 		}
 	} else {

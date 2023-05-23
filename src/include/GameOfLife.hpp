@@ -2,7 +2,7 @@
 #define GAMEOFLIFE_H
 
 #include <vector>
-#include <PgmFileManager.hpp>
+#include <PgmUtils.hpp>
 #include <Cell.hpp>
 
 class GameOfLife
@@ -19,7 +19,7 @@ private:
 	void populate_neighbors(std::vector<Cell>& grid);
 
 public:
-	GameOfLife(unsigned char evolution_strategy, unsigned int steps, unsigned int snapshotting_period, PgmFileManager& pgm_manager);
+	GameOfLife(unsigned char evolution_strategy, unsigned int steps, unsigned int snapshotting_period, const SIZE_HOLDER& size, const PGM_HOLDER& image_data);
 	void evolve();
 	void print_grid(std::vector<Cell>& grid) const;
 	std::vector<Cell>& get_grid(void);

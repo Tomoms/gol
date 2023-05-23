@@ -4,16 +4,16 @@
 #define REFERENCE_TO_CELL(x, y) \
 		std::ref(grid[coords_to_index(x, y)])
 
-GameOfLife::GameOfLife(unsigned char evolution_strategy, unsigned int steps, unsigned int snapshotting_period, PgmFileManager& pgm_manager):
+GameOfLife::GameOfLife(unsigned char evolution_strategy, unsigned int steps, unsigned int snapshotting_period, const SIZE_HOLDER& size, const PGM_HOLDER& image_data):
 evolution_strategy_{evolution_strategy},
 steps_{steps},
 snapshotting_period_{snapshotting_period},
-rows_{pgm_manager.get_rows()},
-cols_{pgm_manager.get_cols()}
+rows_{size.first},
+cols_{size.second}
 {
 	for (auto i = 0UL; i < rows_; i++) {
 		for (auto j = 0UL; j < cols_; j++) {
-			grid_.emplace_back(Cell{i, j, pgm_manager.get_image_data()[i * cols_ + j] == CELL_ALIVE_VALUE});
+			grid_.emplace_back(Cell{i, j, image_data[i * cols_ + j] == CELL_ALIVE_VALUE});
 		}
 	}
 	populate_neighbors(grid_);
