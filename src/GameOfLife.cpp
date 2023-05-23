@@ -1,7 +1,7 @@
 #include <iostream>
 #include <GameOfLife.hpp>
 
-#define REFERENCE_TO_NEIGHBOR(x, y) \
+#define REFERENCE_TO_CELL(x, y) \
 		std::ref(grid[coords_to_index(x, y)])
 
 GameOfLife::GameOfLife(unsigned char evolution_strategy, unsigned int steps, unsigned int snapshotting_period, PgmFileManager& pgm_manager):
@@ -31,14 +31,14 @@ void GameOfLife::populate_neighbors(std::vector<Cell>& grid)
 		cell.get_neighbors().clear();
 		cell.add_to_neighbors(
 		{
-			REFERENCE_TO_NEIGHBOR(prev_row, prev_col),
-			REFERENCE_TO_NEIGHBOR(prev_row, y),
-			REFERENCE_TO_NEIGHBOR(prev_row, next_col),
-			REFERENCE_TO_NEIGHBOR(x, prev_col),
-			REFERENCE_TO_NEIGHBOR(x, next_col),
-			REFERENCE_TO_NEIGHBOR(next_row, prev_col),
-			REFERENCE_TO_NEIGHBOR(next_row, y),
-			REFERENCE_TO_NEIGHBOR(next_row, next_col),
+			REFERENCE_TO_CELL(prev_row, prev_col),
+			REFERENCE_TO_CELL(prev_row, y),
+			REFERENCE_TO_CELL(prev_row, next_col),
+			REFERENCE_TO_CELL(x, prev_col),
+			REFERENCE_TO_CELL(x, next_col),
+			REFERENCE_TO_CELL(next_row, prev_col),
+			REFERENCE_TO_CELL(next_row, y),
+			REFERENCE_TO_CELL(next_row, next_col),
 		}
 		);
 	}
