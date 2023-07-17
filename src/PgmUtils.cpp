@@ -1,3 +1,4 @@
+#include <limits>
 #include <PgmUtils.hpp>
 
 SIZE_HOLDER PgmUtils::read_size(std::string& filename)
@@ -9,14 +10,12 @@ SIZE_HOLDER PgmUtils::read_size(std::string& filename)
 	return { rows, cols };
 }
 
-PGM_HOLDER PgmUtils::read_image_data(std::string& filename)
+PGM_HOLDER PgmUtils::read_image_data(std::string& filename, const SIZE_HOLDER& size)
 {
-	unsigned long rows, cols;
 	std::ifstream instream(filename.c_str(), std::ios_base::binary);
-	std::string magic;
-	instream >> magic >> rows >> cols;
-	PGM_HOLDER image_data(rows * cols, 0);
-	instream.read(reinterpret_cast<char*>(&image_data[0]), rows * cols);
+	instream.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+	PGM_HOLDER image_data(size.first * size.second, 0);
+	instream.read(reinterpret_cast<char*>(&image_data[0]), size.first * size.second);
 	return image_data;
 }
 

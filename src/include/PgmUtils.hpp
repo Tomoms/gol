@@ -14,7 +14,7 @@
 namespace PgmUtils {
 
 SIZE_HOLDER read_size(std::string& filename);
-PGM_HOLDER read_image_data(std::string& filename);
+PGM_HOLDER read_image_data(std::string& filename, const SIZE_HOLDER& size);
 void write_image_data(std::string& filename, const SIZE_HOLDER& size, const PGM_HOLDER& image_data);
 PGM_HOLDER grid_to_image_data(std::vector<Cell>& grid);
 

@@ -104,7 +104,7 @@ int main(int argc, char **argv)
 			snapshotting_period = steps;
 		}
 		const SIZE_HOLDER grid_size = PgmUtils::read_size(filename);
-		const PGM_HOLDER image_data = PgmUtils::read_image_data(filename);
+		const PGM_HOLDER image_data = PgmUtils::read_image_data(filename, grid_size);
 		GameOfLife game{evolution_strategy, steps, snapshotting_period, grid_size, image_data};
 		for (auto i = 1UL; i <= steps; i++) {
 			game.evolve();
