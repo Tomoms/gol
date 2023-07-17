@@ -21,7 +21,7 @@ private:
 public:
 	GameOfLife(unsigned char evolution_strategy, unsigned int steps, unsigned int snapshotting_period, const SIZE_HOLDER& size, const PGM_HOLDER& image_data);
 	void evolve();
-	void print_grid(std::vector<Cell>& grid) const;
+	void print_grid() const;
 	std::vector<Cell>& get_grid(void);
 };
 
