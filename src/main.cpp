@@ -114,8 +114,20 @@ int main(int argc, char **argv)
 				snapshotting_period = steps;
 			}
 			const SIZE_HOLDER grid_size = PgmUtils::read_size(filename);
+
 			unsigned long elements = grid_size.first * grid_size.second;
 			broadcast(world, elements, 0);
+			std::vector<unsigned long> sendcounts(world.size());
+			std::vector<unsigned long> displacements(world.size());
+
+			unsigned long elements_per_process = elements / world.size();
+			unsigned long remaining_elements = elements % world.size();
+
+			for (int i = 0; i < world.size(); i++) {
+				sendcounts[i] = elements_per_process + (ulong(i) < remaining_elements ? 1 : 0);
+				displacements[i] = i * elements_per_process + std::min(ulong(i), remaining_elements);
+			}
+
 			const PGM_HOLDER image_data = PgmUtils::read_image_data(filename, grid_size);
 			GameOfLife game{evolution_strategy, steps, snapshotting_period, grid_size, image_data};
 			for (auto i = 1UL; i <= steps; i++) {
@@ -136,6 +148,7 @@ int main(int argc, char **argv)
 		}
 		unsigned long elements;
 		broadcast(world, elements, 0);
+		unsigned long receive_count = elements / world.size() + (ulong(world.rank()) < elements % world.size() ? 1 : 0);
 	}
 
 	return ret;
