@@ -80,7 +80,7 @@ std::string compute_checkpoint_filename(unsigned long step)
 	return "snapshot_" + suffix;
 }
 
-unsigned long compute_rank_elements(unsigned long grid_size, mpi::communicator& world)
+static inline unsigned long compute_rank_elements(unsigned long grid_size, mpi::communicator& world)
 {
 		auto cells = grid_size * grid_size;
 		auto rank_elements = (cells / world.size());
