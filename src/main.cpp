@@ -80,11 +80,11 @@ std::string compute_checkpoint_filename(unsigned long step)
 	return "snapshot_" + suffix;
 }
 
-static inline unsigned long compute_rank_elements(unsigned long grid_size, mpi::communicator& world)
+static inline unsigned long compute_rank_elements(const unsigned long grid_size, mpi::communicator& world)
 {
-		auto cells = grid_size * grid_size;
+		const auto cells = grid_size * grid_size;
 		auto rank_elements = (cells / world.size());
-		auto rank_remaining_elements = ulong(world.rank()) < cells % world.size();
+		const auto rank_remaining_elements = ulong(world.rank()) < cells % world.size();
 		rank_elements += rank_remaining_elements;
 		return rank_elements;
 }
@@ -115,13 +115,13 @@ int main(int argc, char **argv)
 
 	if (program["-i"] == true && program["-r"] == false) {
 		RANK_PRINT("enters image generation branch");
-		auto filename = program.get<std::string>("-f");
-		auto grid_size = program.get<unsigned long>("-k");
-		auto rank_elements = compute_rank_elements(grid_size, world);
+		const auto filename = program.get<std::string>("-f");
+		const auto grid_size = program.get<unsigned long>("-k");
+		const auto rank_elements = compute_rank_elements(grid_size, world);
 		RANK_PRINT("works on " << rank_elements << " elements");
 
 		if (!world.rank()) {
-			SIZE_HOLDER dimensions{grid_size, grid_size};
+			const SIZE_HOLDER dimensions{grid_size, grid_size};
 			PgmUtils::write_header(filename, dimensions);
 		}
 	}

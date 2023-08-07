@@ -13,7 +13,7 @@
 
 namespace PgmUtils {
 
-	void write_header(std::string& filename, SIZE_HOLDER& dimensions);
+	void write_header(const std::string& filename, const SIZE_HOLDER& dimensions);
 
 }
 
