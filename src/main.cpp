@@ -80,75 +80,41 @@ std::string compute_checkpoint_filename(unsigned long step)
 	return "snapshot_" + suffix;
 }
 
+unsigned long compute_rank_elements(unsigned long grid_size, mpi::communicator& world)
+{
+		auto cells = grid_size * grid_size;
+		auto rank_elements = (cells / world.size());
+		auto rank_remaining_elements = ulong(world.rank()) < cells % world.size();
+		rank_elements += rank_remaining_elements;
+		return rank_elements;
+}
+
+#define RANK_PRINT(x) \
+	std::cout << "Rank " << world.rank() << ": " << x << std::endl
+
 int main(int argc, char **argv)
 {
 	mpi::environment env(argc, argv);
 	mpi::communicator world;
 	int ret = EXIT_SUCCESS;
-	bool run_to_generate_image = 0;
-	if (world.rank() == 0) {
-		argparse::ArgumentParser program{"game_of_life"};
-		setup_parser(program);
 
-		try {
-			program.parse_args(argc, argv);
-		} catch (const std::runtime_error& err) {
-			std::cerr << err.what() << std::endl;
-			std::cerr << program;
-			std::exit(1);
-		}
+	argparse::ArgumentParser program{"game_of_life"};
+	setup_parser(program);
 
-		if (program["-i"] == true && program["-r"] == false) {
-			run_to_generate_image = 1;
-			broadcast(world, run_to_generate_image, 0);
-			auto filename = program.get<std::string>("-f");
-			auto size = program.get<unsigned long>("-k");
-			// TODO implement generating a new image
-		} else if (program["-r"] == true && program["-i"] == false) {
-			broadcast(world, run_to_generate_image, 0);
-			auto filename = program.get<std::string>("-f");
-			auto steps = program.get<unsigned int>("-n");
-			auto evolution_strategy = program.get<unsigned char>("-e");
-			auto snapshotting_period = program.get<unsigned int>("-s");
-			if (!snapshotting_period) {
-				snapshotting_period = steps;
-			}
-			const SIZE_HOLDER grid_size = PgmUtils::read_size(filename);
+	try {
+		program.parse_args(argc, argv);
+	} catch (const std::runtime_error& err) {
+		std::cerr << err.what() << std::endl;
+		std::cerr << program;
+		std::exit(1);
+	}
 
-			unsigned long elements = grid_size.first * grid_size.second;
-			broadcast(world, elements, 0);
-			std::vector<unsigned long> sendcounts(world.size());
-			std::vector<unsigned long> displacements(world.size());
-
-			unsigned long elements_per_process = elements / world.size();
-			unsigned long remaining_elements = elements % world.size();
-
-			for (int i = 0; i < world.size(); i++) {
-				sendcounts[i] = elements_per_process + (ulong(i) < remaining_elements ? 1 : 0);
-				displacements[i] = i * elements_per_process + std::min(ulong(i), remaining_elements);
-			}
-
-			const PGM_HOLDER image_data = PgmUtils::read_image_data(filename, grid_size);
-			GameOfLife game{evolution_strategy, steps, snapshotting_period, grid_size, image_data};
-			for (auto i = 1UL; i <= steps; i++) {
-				game.evolve();
-				if (i % snapshotting_period == 0) {
-					std::string checkpoint_filename{compute_checkpoint_filename(i)};
-					PgmUtils::write_image_data(checkpoint_filename, grid_size, PgmUtils::grid_to_image_data(game.get_grid()));
-				}
-			}
-		} else {
-			std::cerr << "ERROR: Exactly one between -i and -r must be specified. Quitting." << std::endl;
-			ret = EXIT_FAILURE;
-		}
-	} else {
-		broadcast(world, run_to_generate_image, 0);
-		if (run_to_generate_image) {
-			return ret;
-		}
-		unsigned long elements;
-		broadcast(world, elements, 0);
-		unsigned long receive_count = elements / world.size() + (ulong(world.rank()) < elements % world.size() ? 1 : 0);
+	if (program["-i"] == true && program["-r"] == false) {
+		RANK_PRINT("enters image generation branch");
+		auto filename = program.get<std::string>("-f");
+		auto grid_size = program.get<unsigned long>("-k");
+		auto rank_elements = compute_rank_elements(grid_size, world);
+		RANK_PRINT("works on " << rank_elements << " elements");
 	}
 
 	return ret;
