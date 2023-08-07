@@ -119,6 +119,11 @@ int main(int argc, char **argv)
 		auto grid_size = program.get<unsigned long>("-k");
 		auto rank_elements = compute_rank_elements(grid_size, world);
 		RANK_PRINT("works on " << rank_elements << " elements");
+
+		if (!world.rank()) {
+			SIZE_HOLDER dimensions{grid_size, grid_size};
+			PgmUtils::write_header(filename, dimensions);
+		}
 	}
 
 	return ret;
