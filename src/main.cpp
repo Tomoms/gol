@@ -89,8 +89,12 @@ static inline unsigned long compute_rank_elements(unsigned long grid_size, mpi::
 		return rank_elements;
 }
 
+#ifdef DEBUG
 #define RANK_PRINT(x) \
 	std::cout << "Rank " << world.rank() << ": " << x << std::endl
+#else
+#define RANK_PRINT(x) do {} while (0);
+#endif
 
 int main(int argc, char **argv)
 {
