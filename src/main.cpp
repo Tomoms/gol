@@ -1,6 +1,5 @@
 #include <filesystem>
 #include <iostream>
-#include <tuple>
 #include <argparse/argparse.hpp>
 #include <boost/mpi.hpp>
 #include <PgmUtils.hpp>
@@ -83,7 +82,7 @@ std::string compute_checkpoint_filename(unsigned long step)
 	return "snapshot_" + suffix;
 }
 
-std::tuple<ulong, ulong, ulong> decompose_domain(ulong grid_size, mpi::communicator world)
+std::pair<ulong, ulong> compute_rank_chunk_bounds(ulong grid_size, mpi::communicator world)
 {
 	const auto cells = grid_size * grid_size;
 	auto rank_elements = cells / world.size();
@@ -91,7 +90,11 @@ std::tuple<ulong, ulong, ulong> decompose_domain(ulong grid_size, mpi::communica
 	const auto leftovers = cells % world.size();
 	bool correction_factor = ulong(world.rank()) < leftovers;
 	rank_elements += correction_factor;
-	return { rank_elements, regular_elements, leftovers };
+	auto rank_offset = 0;
+	for (auto i = 0; i < world.rank(); i++) {
+		rank_offset += regular_elements + (ulong(i) < leftovers);
+	}
+	return { rank_elements, rank_offset };
 }
 
 #ifdef DEBUG
@@ -129,12 +132,9 @@ int main(int argc, char **argv)
 		RANK_PRINT("enters image generation branch");
 		const auto filename = program.get<std::string>("-f");
 		const auto grid_size = program.get<unsigned long>("-k");
-		auto [rank_elements, regular_elements, leftovers] = decompose_domain(grid_size, world);
-		auto rank_offset = 0;
-		for (auto i = 0; i < world.rank(); i++) {
-			rank_offset += regular_elements + (ulong(i) < leftovers);
-		}
+		auto [rank_elements, rank_offset] = compute_rank_chunk_bounds(grid_size, world);
 		RANK_PRINT("works on " << rank_elements << " elements");
+
 		PGM_HOLDER rank_random_chunk = PgmUtils::generate_random_chunk(rank_elements);
 
 		if (!world.rank()) {
