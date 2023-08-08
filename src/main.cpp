@@ -80,20 +80,18 @@ std::string compute_checkpoint_filename(unsigned long step)
 	return "snapshot_" + suffix;
 }
 
-static inline unsigned long compute_rank_elements(const unsigned long grid_size, mpi::communicator& world)
-{
-		const auto cells = grid_size * grid_size;
-		auto rank_elements = (cells / world.size());
-		const auto rank_remaining_elements = ulong(world.rank()) < cells % world.size();
-		rank_elements += rank_remaining_elements;
-		return rank_elements;
-}
-
 #ifdef DEBUG
 #define RANK_PRINT(x) \
 	std::cout << "Rank " << world.rank() << ": " << x << std::endl
 #else
-#define RANK_PRINT(x) do {} while (0);
+#define RANK_PRINT(x) do {} while (0)
+#endif
+
+#ifdef DEBUG
+#define ONE_RANK_PRINT(r, x) \
+	if (world.rank() == r) std::cout << "Rank " << r << ": " << x << std::endl
+#else
+#define ONE_RANK_PRINT(r, x) do {} while (0)
 #endif
 
 int main(int argc, char **argv)
@@ -117,8 +115,18 @@ int main(int argc, char **argv)
 		RANK_PRINT("enters image generation branch");
 		const auto filename = program.get<std::string>("-f");
 		const auto grid_size = program.get<unsigned long>("-k");
-		const auto rank_elements = compute_rank_elements(grid_size, world);
+		const auto cells = grid_size * grid_size;
+		auto rank_elements = cells / world.size();
+		auto regular_elements = rank_elements;
+		const auto leftovers = cells % world.size();
+		bool correction_factor = ulong(world.rank()) < leftovers;
+		rank_elements += correction_factor;
+		auto rank_offset = 0;
+		for (auto i = 0; i < world.rank(); i++) {
+			rank_offset += regular_elements + (ulong(i) < leftovers);
+		}
 		RANK_PRINT("works on " << rank_elements << " elements");
+		RANK_PRINT("offset " << rank_offset);
 
 		if (!world.rank()) {
 			const SIZE_HOLDER dimensions{grid_size, grid_size};
