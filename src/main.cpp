@@ -1,4 +1,6 @@
+#include <filesystem>
 #include <iostream>
+#include <random>
 #include <argparse/argparse.hpp>
 #include <boost/mpi.hpp>
 #include <PgmUtils.hpp>
@@ -126,12 +128,27 @@ int main(int argc, char **argv)
 			rank_offset += regular_elements + (ulong(i) < leftovers);
 		}
 		RANK_PRINT("works on " << rank_elements << " elements");
-		RANK_PRINT("offset " << rank_offset);
 
 		if (!world.rank()) {
 			const SIZE_HOLDER dimensions{grid_size, grid_size};
 			PgmUtils::write_header(filename, dimensions);
 		}
+		world.barrier();
+
+		PGM_HOLDER rank_random_chunk(rank_elements);
+		std::random_device rd;
+		std::mt19937 generator(rd());
+		std::uniform_int_distribution<int> distribution(0, 1);
+		for (auto i = 0UL; i < rank_elements; i++) {
+			int value = distribution(generator);
+			rank_random_chunk[i] = (value == 0) ? 0x00 : 0xFF;
+		}
+		auto file_size = std::filesystem::file_size(filename);
+		world.barrier();
+		rank_offset += file_size;
+		std::streampos rank_offset_streampos = static_cast<std::streampos>(rank_offset);
+		RANK_PRINT("offset " << rank_offset_streampos);
+		PgmUtils::write_chunk_to_file(filename, rank_random_chunk, rank_offset_streampos);
 	}
 
 	return ret;
