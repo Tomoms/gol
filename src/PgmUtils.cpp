@@ -7,12 +7,13 @@ void PgmUtils::write_header(const std::string& filename, const SIZE_HOLDER& dime
 	outstream << "P5 " << dimensions.first << " " << dimensions.second << " " << PGM_MAX_VALUE << std::endl;
 }
 
-void PgmUtils::write_chunk_to_file(const std::string& filename, const std::vector<char>& chunk,
-								   std::streampos start_offset) {
-    std::ofstream file(filename, std::ios::binary | std::ios::in | std::ios::out);
-    file.seekp(start_offset);
-    for (const char byte : chunk) {
-        file.put(byte);
-    }
-    file.close();
+void PgmUtils::write_chunk_to_file(const std::string& filename, const PGM_HOLDER& chunk,
+									const std::streampos start_offset)
+{
+	std::ofstream file(filename, std::ios::binary | std::ios::in);
+	file.seekp(start_offset);
+	for (const char byte : chunk) {
+		file.put(byte);
+	}
+	file.close();
 }

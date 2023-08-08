@@ -14,8 +14,8 @@
 namespace PgmUtils {
 
 	void write_header(const std::string& filename, const SIZE_HOLDER& dimensions);
-	void write_chunk_to_file(const std::string& filename, const std::vector<char>& chunk,
-							 std::streampos start_offset);
+	void write_chunk_to_file(const std::string& filename, const PGM_HOLDER& chunk,
+							 const std::streampos start_offset);
 
 }
 
