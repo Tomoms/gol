@@ -17,3 +17,16 @@ void PgmUtils::write_chunk_to_file(const std::string& filename, const PGM_HOLDER
 	MPI_File_write_at_all(file, offset, chunk.data(), size, MPI_CHAR, MPI_STATUS_IGNORE);
 	MPI_File_close(&file);
 }
+
+PGM_HOLDER PgmUtils::generate_random_chunk(unsigned long size)
+{
+	PGM_HOLDER chunk(size);
+	std::random_device rd;
+	std::mt19937 generator(rd());
+	std::uniform_int_distribution<int> distribution(0, 1);
+	for (auto i = 0UL; i < size; i++) {
+		int value = distribution(generator);
+		chunk[i] = (value == 0) ? 0x00 : 0xFF;
+	}
+	return chunk;
+}
