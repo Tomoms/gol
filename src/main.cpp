@@ -5,6 +5,7 @@
 #include <boost/mpi.hpp>
 #include <PgmUtils.hpp>
 #include <GameOfLife.hpp>
+#include <mpi.h>
 
 namespace mpi = boost::mpi;
 
@@ -148,7 +149,7 @@ int main(int argc, char **argv)
 		rank_offset += file_size;
 		std::streampos rank_offset_streampos = static_cast<std::streampos>(rank_offset);
 		RANK_PRINT("offset " << rank_offset_streampos);
-		PgmUtils::write_chunk_to_file(filename, rank_random_chunk, rank_offset_streampos);
+		PgmUtils::write_chunk_to_file(filename, rank_random_chunk, rank_offset_streampos, static_cast<MPI_Comm>(world));
 	}
 
 	return ret;

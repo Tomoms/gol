@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 #include <Cell.hpp>
+#include <mpi.h>
 
 #define PGM_MAX_VALUE	255
 #define PGM_HOLDER		std::vector<unsigned char>
@@ -15,8 +16,7 @@ namespace PgmUtils {
 
 	void write_header(const std::string& filename, const SIZE_HOLDER& dimensions);
 	void write_chunk_to_file(const std::string& filename, const PGM_HOLDER& chunk,
-							 const std::streampos start_offset);
-
+							 const std::streampos start_offset, MPI_Comm comm);
 }
 
 #endif

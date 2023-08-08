@@ -8,12 +8,12 @@ void PgmUtils::write_header(const std::string& filename, const SIZE_HOLDER& dime
 }
 
 void PgmUtils::write_chunk_to_file(const std::string& filename, const PGM_HOLDER& chunk,
-									const std::streampos start_offset)
+									const std::streampos start_offset, MPI_Comm comm)
 {
-	std::ofstream file(filename, std::ios::binary | std::ios::in);
-	file.seekp(start_offset);
-	for (const char byte : chunk) {
-		file.put(byte);
-	}
-	file.close();
+	MPI_File file;
+	MPI_File_open(comm, filename.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &file);
+	std::size_t size = chunk.size();
+	MPI_Offset offset = static_cast<MPI_Offset>(start_offset);
+	MPI_File_write_at_all(file, offset, chunk.data(), size, MPI_CHAR, MPI_STATUS_IGNORE);
+	MPI_File_close(&file);
 }
