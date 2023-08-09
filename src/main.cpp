@@ -98,17 +98,17 @@ std::pair<ulong, ulong> compute_rank_chunk_bounds(ulong grid_size, mpi::communic
 }
 
 #ifdef DEBUG
-#define RANK_PRINT(x) \
+#define ALL_RANKS_PRINT(x) \
 	std::cout << "Rank " << world.rank() << ": " << x << std::endl
 #else
-#define RANK_PRINT(x) do {} while (0)
+#define ALL_RANKS_PRINT(x) do {} while (0)
 #endif
 
 #ifdef DEBUG
-#define ONE_RANK_PRINT(r, x) \
+#define ONE_RANK_PRINTS(r, x) \
 	if (world.rank() == r) std::cout << "Rank " << r << ": " << x << std::endl
 #else
-#define ONE_RANK_PRINT(r, x) do {} while (0)
+#define ONE_RANK_PRINTS(r, x) do {} while (0)
 #endif
 
 int main(int argc, char **argv)
@@ -129,11 +129,11 @@ int main(int argc, char **argv)
 	}
 
 	if (program["-i"] == true && program["-r"] == false) {
-		RANK_PRINT("enters image generation branch");
+		ALL_RANKS_PRINT("enters image generation branch");
 		const auto filename = program.get<std::string>("-f");
 		const auto grid_size = program.get<unsigned long>("-k");
 		auto [rank_elements, rank_offset] = compute_rank_chunk_bounds(grid_size, world);
-		RANK_PRINT("works on " << rank_elements << " elements");
+		ALL_RANKS_PRINT("works on " << rank_elements << " elements");
 
 		PGM_HOLDER rank_random_chunk = PgmUtils::generate_random_chunk(rank_elements);
 
@@ -147,7 +147,7 @@ int main(int argc, char **argv)
 		world.barrier();
 		rank_offset += file_size;
 		std::streampos rank_offset_streampos = static_cast<std::streampos>(rank_offset);
-		RANK_PRINT("offset " << rank_offset_streampos);
+		ALL_RANKS_PRINT("offset " << rank_offset_streampos);
 		PgmUtils::write_chunk_to_file(filename, rank_random_chunk, rank_offset_streampos, static_cast<MPI_Comm>(world));
 	}
 
