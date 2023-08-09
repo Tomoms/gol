@@ -1,5 +1,8 @@
+#include <climits>
 #include <filesystem>
 #include <iostream>
+#include <sstream>
+#include <string>
 #include <argparse/argparse.hpp>
 #include <boost/mpi.hpp>
 #include <PgmUtils.hpp>
@@ -128,9 +131,10 @@ int main(int argc, char **argv)
 		std::exit(1);
 	}
 
+	const auto filename = program.get<std::string>("-f");
+
 	if (program["-i"] == true && program["-r"] == false) {
 		ALL_RANKS_PRINT("enters image generation branch");
-		const auto filename = program.get<std::string>("-f");
 		const auto grid_size = program.get<unsigned long>("-k");
 		auto [rank_elements, rank_offset] = compute_rank_chunk_bounds(grid_size, world);
 		ALL_RANKS_PRINT("works on " << rank_elements << " elements");
@@ -149,6 +153,30 @@ int main(int argc, char **argv)
 		std::streampos rank_offset_streampos = static_cast<std::streampos>(rank_offset);
 		ALL_RANKS_PRINT("offset " << rank_offset_streampos);
 		PgmUtils::write_chunk_to_file(filename, rank_random_chunk, rank_offset_streampos, static_cast<MPI_Comm>(world));
+	} else if (program["-i"] == false && program["-r"] == true) {
+		ALL_RANKS_PRINT("enters running branch\nFirst step: read the image");
+		ulong grid_size;
+		uint header_length;
+
+		// Rank 0 reads the header
+		if (!world.rank()) {
+			std::ifstream infile(filename.c_str());
+			std::string line;
+			std::getline(infile, line);
+			std::istringstream iss(line);
+			header_length = uint(line.size()) + 1; // account for new line
+			std::string magic;
+			iss >> magic >> grid_size;
+			ALL_RANKS_PRINT(magic);
+		}
+		broadcast(world, grid_size, 0);
+		broadcast(world, header_length, 0);
+
+		ALL_RANKS_PRINT("detected size of " << grid_size);
+		ALL_RANKS_PRINT("header length: " << header_length);
+	} else {
+		ONE_RANK_PRINTS(0, "invalid arguments, quitting.");
+		ret = EXIT_FAILURE;
 	}
 
 	return ret;
