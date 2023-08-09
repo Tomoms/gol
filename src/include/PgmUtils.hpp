@@ -18,6 +18,8 @@ namespace PgmUtils {
 	void write_header(const std::string& filename, const SIZE_HOLDER& dimensions);
 	void write_chunk_to_file(const std::string& filename, const PGM_HOLDER& chunk,
 							 const std::streampos start_offset, MPI_Comm comm);
+	PGM_HOLDER read_chunk_from_file(const std::string& filename, ulong chunk_length,
+							  const std::streampos start_offset, MPI_Comm comm);
 	PGM_HOLDER generate_random_chunk(unsigned long size);
 }
 

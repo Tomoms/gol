@@ -174,6 +174,12 @@ int main(int argc, char **argv)
 
 		ALL_RANKS_PRINT("detected size of " << grid_size);
 		ALL_RANKS_PRINT("header length: " << header_length);
+
+		auto [rank_elements, rank_offset] = compute_rank_chunk_bounds(grid_size, world);
+		rank_offset += header_length;
+		std::streampos rank_offset_streampos = static_cast<std::streampos>(rank_offset);
+		ALL_RANKS_PRINT("offset " << rank_offset_streampos);
+		PGM_HOLDER rank_chunk = PgmUtils::read_chunk_from_file(filename, rank_elements, rank_offset_streampos, static_cast<MPI_Comm>(world));
 	} else {
 		ONE_RANK_PRINTS(0, "invalid arguments, quitting.");
 		ret = EXIT_FAILURE;

@@ -18,6 +18,18 @@ void PgmUtils::write_chunk_to_file(const std::string& filename, const PGM_HOLDER
 	MPI_File_close(&file);
 }
 
+PGM_HOLDER PgmUtils::read_chunk_from_file(const std::string& filename, ulong chunk_length,
+									const std::streampos start_offset, MPI_Comm comm)
+{
+	MPI_File file;
+	MPI_File_open(comm, filename.c_str(), MPI_MODE_RDONLY, MPI_INFO_NULL, &file);
+	PGM_HOLDER chunk(chunk_length);
+	MPI_Offset offset = static_cast<MPI_Offset>(start_offset);
+	MPI_File_read_at_all(file, offset, chunk.data(), chunk_length, MPI_CHAR, MPI_STATUS_IGNORE);
+	MPI_File_close(&file);
+	return chunk;
+}
+
 PGM_HOLDER PgmUtils::generate_random_chunk(unsigned long size)
 {
 	PGM_HOLDER chunk(size);
