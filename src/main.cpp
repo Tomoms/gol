@@ -147,7 +147,6 @@ int main(int argc, char **argv)
 			header_length = uint(line.size()) + 1; // account for new line
 			std::string magic;
 			iss >> magic >> grid_size;
-			ALL_RANKS_PRINT(magic);
 		}
 		broadcast(world, grid_size, 0);
 		broadcast(world, header_length, 0);
