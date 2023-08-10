@@ -129,10 +129,10 @@ int main(int argc, char **argv)
 		world.barrier();
 		auto file_size = std::filesystem::file_size(filename);
 		world.barrier();
-		rank_offset += file_size;
-		std::streampos rank_offset_streampos = static_cast<std::streampos>(rank_offset);
-		ALL_RANKS_PRINT("offset " << rank_offset_streampos);
-		PgmUtils::write_chunk_to_file(filename, rank_random_chunk, rank_offset_streampos, static_cast<MPI_Comm>(world));
+		auto rank_file_offset = rank_offset + file_size;
+		std::streampos rank_file_offset_streampos = static_cast<std::streampos>(rank_file_offset);
+		ALL_RANKS_PRINT("offset " << rank_file_offset_streampos);
+		PgmUtils::write_chunk_to_file(filename, rank_random_chunk, rank_file_offset_streampos, static_cast<MPI_Comm>(world));
 	} else if (program["-i"] == false && program["-r"] == true) {
 		ALL_RANKS_PRINT("enters running branch\nFirst step: read the image");
 		ulong grid_size;
@@ -156,10 +156,10 @@ int main(int argc, char **argv)
 		ALL_RANKS_PRINT("header length: " << header_length);
 
 		auto [rank_elements, rank_offset] = compute_rank_chunk_bounds(grid_size, world);
-		rank_offset += header_length;
-		std::streampos rank_offset_streampos = static_cast<std::streampos>(rank_offset);
-		ALL_RANKS_PRINT("offset " << rank_offset_streampos);
-		PGM_HOLDER rank_chunk = PgmUtils::read_chunk_from_file(filename, rank_elements, rank_offset_streampos, static_cast<MPI_Comm>(world));
+		auto rank_file_offset = rank_offset + header_length;
+		std::streampos rank_file_offset_streampos = static_cast<std::streampos>(rank_file_offset);
+		ALL_RANKS_PRINT("offset " << rank_file_offset_streampos);
+		PGM_HOLDER rank_chunk = PgmUtils::read_chunk_from_file(filename, rank_elements, rank_file_offset_streampos, static_cast<MPI_Comm>(world));
 	} else {
 		ONE_RANK_PRINTS(0, "invalid arguments, quitting.");
 		ret = EXIT_FAILURE;
