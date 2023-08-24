@@ -112,7 +112,6 @@ int main(int argc, char **argv)
 	const auto filename = program.get<std::string>("-f");
 
 	if (program["-i"] == true && program["-r"] == false) {
-		ALL_RANKS_PRINT("enters image generation branch");
 		const auto grid_size = program.get<unsigned long>("-k");
 		auto [rank_rows, rank_offset] = compute_rank_chunk_bounds(grid_size, world);
 		ALL_RANKS_PRINT("works on " << rank_rows * grid_size << " elements");
