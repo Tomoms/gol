@@ -81,17 +81,15 @@ std::string compute_checkpoint_filename(unsigned long step)
 
 std::pair<ulong, ulong> compute_rank_chunk_bounds(ulong grid_size, mpi::communicator world)
 {
-	const auto cells = grid_size * grid_size;
-	auto rank_elements = cells / world.size();
-	auto regular_elements = rank_elements;
-	const auto leftovers = cells % world.size();
-	bool correction_factor = ulong(world.rank()) < leftovers;
-	rank_elements += correction_factor;
-	auto rank_offset = 0;
+	auto rank_rows = grid_size / world.size();
+	const auto leftovers = grid_size % world.size();
+	if (ulong(world.rank()) < leftovers)
+		rank_rows++;
+	auto rank_offset = 0UL;
 	for (auto i = 0; i < world.rank(); i++) {
-		rank_offset += regular_elements + (ulong(i) < leftovers);
+		rank_offset += (rank_rows + (ulong(i) < leftovers)) * grid_size;
 	}
-	return { rank_elements, rank_offset };
+	return { rank_rows, rank_offset };
 }
 
 int main(int argc, char **argv)
@@ -116,10 +114,10 @@ int main(int argc, char **argv)
 	if (program["-i"] == true && program["-r"] == false) {
 		ALL_RANKS_PRINT("enters image generation branch");
 		const auto grid_size = program.get<unsigned long>("-k");
-		auto [rank_elements, rank_offset] = compute_rank_chunk_bounds(grid_size, world);
-		ALL_RANKS_PRINT("works on " << rank_elements << " elements");
+		auto [rank_rows, rank_offset] = compute_rank_chunk_bounds(grid_size, world);
+		ALL_RANKS_PRINT("works on " << rank_rows * grid_size << " elements");
 
-		PGM_HOLDER rank_random_chunk = PgmUtils::generate_random_chunk(rank_elements);
+		PGM_HOLDER rank_random_chunk = PgmUtils::generate_random_chunk(rank_rows * grid_size);
 
 		if (!world.rank()) {
 			const SIZE_HOLDER dimensions{grid_size, grid_size};
@@ -134,7 +132,6 @@ int main(int argc, char **argv)
 		ALL_RANKS_PRINT("offset " << rank_file_offset_streampos);
 		PgmUtils::write_chunk_to_file(filename, rank_random_chunk, rank_file_offset_streampos, static_cast<MPI_Comm>(world));
 	} else if (program["-i"] == false && program["-r"] == true) {
-		ALL_RANKS_PRINT("enters running branch\nFirst step: read the image");
 		ulong grid_size;
 		uint header_length;
 
@@ -154,11 +151,12 @@ int main(int argc, char **argv)
 		ALL_RANKS_PRINT("detected size of " << grid_size);
 		ALL_RANKS_PRINT("header length: " << header_length);
 
-		auto [rank_elements, rank_offset] = compute_rank_chunk_bounds(grid_size, world);
+		auto [rank_rows, rank_offset] = compute_rank_chunk_bounds(grid_size, world);
+		ALL_RANKS_PRINT("will work on " << rank_rows << " rows, i.e. " << rank_rows * grid_size << " cells");
 		auto rank_file_offset = rank_offset + header_length;
 		std::streampos rank_file_offset_streampos = static_cast<std::streampos>(rank_file_offset);
 		ALL_RANKS_PRINT("offset " << rank_file_offset_streampos);
-		PGM_HOLDER rank_chunk = PgmUtils::read_chunk_from_file(filename, rank_elements, rank_file_offset_streampos, static_cast<MPI_Comm>(world));
+		PGM_HOLDER rank_chunk = PgmUtils::read_chunk_from_file(filename, rank_rows * grid_size, rank_file_offset_streampos, static_cast<MPI_Comm>(world));
 	} else {
 		ONE_RANK_PRINTS(0, "invalid arguments, quitting.");
 		ret = EXIT_FAILURE;

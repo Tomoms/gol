@@ -1,5 +1,6 @@
 #include <limits>
 #include <PgmUtils.hpp>
+#include <iostream>
 
 void PgmUtils::write_header(const std::string& filename, const SIZE_HOLDER& dimensions)
 {
