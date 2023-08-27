@@ -81,13 +81,15 @@ std::string compute_checkpoint_filename(unsigned long step)
 
 std::pair<ulong, ulong> compute_rank_chunk_bounds(ulong grid_size, mpi::communicator world)
 {
-	auto rank_rows = grid_size / world.size();
+	const auto base_rows_per_rank = grid_size / world.size();
+	auto rank_rows = base_rows_per_rank;
 	const auto leftovers = grid_size % world.size();
 	if (ulong(world.rank()) < leftovers)
 		rank_rows++;
 	auto rank_offset = 0UL;
 	for (auto i = 0; i < world.rank(); i++) {
-		rank_offset += (rank_rows + (ulong(i) < leftovers)) * grid_size;
+		bool correction_factor = ulong(i) < leftovers;
+		rank_offset += (base_rows_per_rank + correction_factor) * grid_size;
 	}
 	return { rank_rows, rank_offset };
 }
@@ -129,7 +131,7 @@ int main(int argc, char **argv)
 		auto rank_file_offset = rank_offset + file_size;
 		std::streampos rank_file_offset_streampos = static_cast<std::streampos>(rank_file_offset);
 		ALL_RANKS_PRINT("offset " << rank_file_offset_streampos);
-		PgmUtils::write_chunk_to_file(filename, rank_random_chunk, rank_file_offset_streampos, static_cast<MPI_Comm>(world));
+		PgmUtils::write_chunk_to_file(filename, rank_random_chunk, rank_file_offset_streampos, 0, static_cast<MPI_Comm>(world));
 	} else if (program["-i"] == false && program["-r"] == true) {
 		ulong grid_size;
 		uint header_length;
@@ -155,7 +157,21 @@ int main(int argc, char **argv)
 		auto rank_file_offset = rank_offset + header_length;
 		std::streampos rank_file_offset_streampos = static_cast<std::streampos>(rank_file_offset);
 		ALL_RANKS_PRINT("offset " << rank_file_offset_streampos);
-		PGM_HOLDER rank_chunk = PgmUtils::read_chunk_from_file(filename, rank_rows * grid_size, rank_file_offset_streampos, static_cast<MPI_Comm>(world));
+		PGM_HOLDER rank_chunk = PgmUtils::read_chunk_from_file(filename, rank_rows * grid_size, rank_file_offset_streampos, grid_size, static_cast<MPI_Comm>(world));
+
+		int prev_rank = world.rank() - 1 >= 0 ? world.rank() - 1 : world.size() - 1;
+		int next_rank = world.rank() + 1 >= world.size() ? 0 : world.rank() + 1;
+		if (world.rank()) {
+			world.send(prev_rank, 1, rank_chunk.data() + grid_size, grid_size);
+			world.send(next_rank, 2, rank_chunk.data() + rank_rows * grid_size, grid_size);
+			world.recv(prev_rank, 2, rank_chunk.data(), grid_size);
+			world.recv(next_rank, 1, rank_chunk.data() + (rank_rows + 1) * grid_size, grid_size);
+		} else {
+			world.recv(prev_rank, 2, rank_chunk.data(), grid_size);
+			world.recv(next_rank, 1, rank_chunk.data() + (rank_rows + 1) * grid_size, grid_size);
+			world.send(prev_rank, 1, rank_chunk.data() + grid_size, grid_size);
+			world.send(next_rank, 2, rank_chunk.data() + rank_rows * grid_size, grid_size);
+		}
 	} else {
 		ONE_RANK_PRINTS(0, "invalid arguments, quitting.");
 		ret = EXIT_FAILURE;
