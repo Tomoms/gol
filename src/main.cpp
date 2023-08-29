@@ -102,7 +102,7 @@ std::string compute_checkpoint_filename(unsigned long step)
 	} else {
 		suffix = std::to_string(step);
 	}
-	return "snapshot_" + suffix;
+	return "pics/snapshot_" + suffix;
 }
 
 std::pair<ulong, ulong> compute_rank_chunk_bounds(mpi::communicator world)

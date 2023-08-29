@@ -1,10 +1,10 @@
 CC = mpic++
-CPPFLAGS = -O3 -DDEBUG -march=native -Wall -Wextra -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align -Wunused -Woverloaded-virtual --pedantic -fopenmp -lboost_mpi -lboost_serialization
+CPPFLAGS = -Ofast -DDEBUG -march=native -mtune=native -mavx2 -mfma -mno-avx256-split-unaligned-load -mno-avx256-split-unaligned-store -Wall -Wextra -Wnon-virtual-dtor -Wcast-align -Wunused -Woverloaded-virtual --pedantic -fopenmp -lboost_mpi -lboost_serialization -L/u/dssc/tfonda/boost/lib -lmimalloc -L/u/dssc/tfonda/mimalloc/out/release
 OUT = out
 SRC = src
 OBJS = $(addprefix $(OUT)/, $(patsubst %.cpp, %.o, $(notdir $(wildcard src/*.cpp))))
 DEPS = $(wildcard $(OBJS:%=%.d))
-INCLUDE_DIRS = $(SRC)/include
+INCLUDE_DIRS = $(SRC)/include /u/dssc/tfonda/boost/include
 INCLUDES = $(INCLUDE_DIRS:%=-I%)
 TARGET = gol
 
