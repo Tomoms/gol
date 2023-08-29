@@ -161,16 +161,43 @@ int main(int argc, char **argv)
 
 		int prev_rank = world.rank() - 1 >= 0 ? world.rank() - 1 : world.size() - 1;
 		int next_rank = world.rank() + 1 >= world.size() ? 0 : world.rank() + 1;
-		if (world.rank()) {
-			world.send(prev_rank, 1, rank_chunk.data() + grid_size, grid_size);
-			world.send(next_rank, 2, rank_chunk.data() + rank_rows * grid_size, grid_size);
-			world.recv(prev_rank, 2, rank_chunk.data(), grid_size);
-			world.recv(next_rank, 1, rank_chunk.data() + (rank_rows + 1) * grid_size, grid_size);
-		} else {
-			world.recv(prev_rank, 2, rank_chunk.data(), grid_size);
-			world.recv(next_rank, 1, rank_chunk.data() + (rank_rows + 1) * grid_size, grid_size);
-			world.send(prev_rank, 1, rank_chunk.data() + grid_size, grid_size);
-			world.send(next_rank, 2, rank_chunk.data() + rank_rows * grid_size, grid_size);
+
+		const auto simulation_steps = program.get<unsigned int>("-n");
+		const auto snapshotting_period = program.get<unsigned int>("-s");
+		PGM_HOLDER next_step_chunk((rank_rows + 2) * grid_size);
+		for (uint i = 0; i < simulation_steps; i++) {
+			if (world.rank()) {
+				world.send(prev_rank, 1, rank_chunk.data() + grid_size, grid_size);
+				world.send(next_rank, 2, rank_chunk.data() + rank_rows * grid_size, grid_size);
+				world.recv(prev_rank, 2, rank_chunk.data(), grid_size);
+				world.recv(next_rank, 1, rank_chunk.data() + (rank_rows + 1) * grid_size, grid_size);
+			} else {
+				world.recv(prev_rank, 2, rank_chunk.data(), grid_size);
+				world.recv(next_rank, 1, rank_chunk.data() + (rank_rows + 1) * grid_size, grid_size);
+				world.send(prev_rank, 1, rank_chunk.data() + grid_size, grid_size);
+				world.send(next_rank, 2, rank_chunk.data() + rank_rows * grid_size, grid_size);
+			}
+
+			for (auto j = grid_size; j < (rank_rows + 1) * grid_size ; j++) {
+				char alive_neighbors = (rank_chunk[j - 1] == 0) + (rank_chunk[j + 1] == 0) + (rank_chunk[j - grid_size - 1] == 0) + (rank_chunk[j - grid_size] == 0) + (rank_chunk[j - grid_size + 1] == 0) + (rank_chunk[j + grid_size - 1] == 0) + (rank_chunk[j + grid_size] == 0) + (rank_chunk[j + grid_size + 1] == 0);
+				if (alive_neighbors == 3) {
+					next_step_chunk[j] = 0;
+				} else if (alive_neighbors == 2) {
+					next_step_chunk[j] = rank_chunk[j];
+				} else {
+					next_step_chunk[j] = 255;
+				}
+			}
+			rank_chunk = next_step_chunk;
+
+			if (i % snapshotting_period == 0) {
+				const auto checkpoint_filename = compute_checkpoint_filename(i);
+				if (!world.rank()) {
+					const SIZE_HOLDER dimensions{grid_size, grid_size};
+					PgmUtils::write_header(checkpoint_filename, dimensions);
+				}
+				PgmUtils::write_chunk_to_file(checkpoint_filename, rank_chunk, rank_file_offset_streampos, grid_size, static_cast<MPI_Comm>(world));
+			}
 		}
 	} else {
 		ONE_RANK_PRINTS(0, "invalid arguments, quitting.");
