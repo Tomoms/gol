@@ -129,7 +129,40 @@ void evolve_static(PGM_HOLDER& rank_chunk, ulong rank_rows, ulong grid_size, uin
 		}
 		rank_chunk = next_step_chunk;
 	}
-	return next_step_chunk;
+}
+
+void evolve_ordered(PGM_HOLDER& rank_chunk, ulong rank_rows, ulong grid_size, uint simulation_steps, uint snapshotting_period, std::streampos& rank_file_offset_streampos, int prev_rank, int next_rank, mpi::communicator world)
+{
+	if (world.rank() == 0) {
+		world.recv(prev_rank, 2, rank_chunk.data(), grid_size);
+		world.recv(next_rank, 1, rank_chunk.data() + (rank_rows + 1) * grid_size, grid_size);
+		for (auto j = grid_size; j < (rank_rows + 1) * grid_size ; j++) {
+			char alive_neighbors = (rank_chunk[j - 1] == 0) + (rank_chunk[j + 1] == 0) + (rank_chunk[j - grid_size - 1] == 0) + (rank_chunk[j - grid_size] == 0) + (rank_chunk[j - grid_size + 1] == 0) + (rank_chunk[j + grid_size - 1] == 0) +(rank_chunk[j + grid_size] == 0) + (rank_chunk[j + grid_size + 1] == 0);
+			if (alive_neighbors == 3) {
+				rank_chunk[j] = 0;
+			} else if (alive_neighbors != 2) {
+				rank_chunk[j] = 255;
+			}
+		}
+		world.send(prev_rank, 1, rank_chunk.data() + grid_size, grid_size);
+		world.send(next_rank, 2, rank_chunk.data() + rank_rows * grid_size, grid_size);
+	} else if (world.rank() == 1) {
+		world.send(prev_rank, 1, rank_chunk.data() + grid_size, grid_size);
+		world.recv(prev_rank, 2, rank_chunk.data(), grid_size);
+		world.recv(next_rank, 1, rank_chunk.data() + (rank_rows + 1) * grid_size, grid_size);
+		for (auto j = grid_size; j < (rank_rows + 1) * grid_size ; j++) {
+			char alive_neighbors = (rank_chunk[j - 1] == 0) + (rank_chunk[j + 1] == 0) + (rank_chunk[j - grid_size - 1] == 0) + (rank_chunk[j - grid_size] == 0) + (rank_chunk[j - grid_size + 1] == 0) + (rank_chunk[j + grid_size - 1] == 0) +(rank_chunk[j + grid_size] == 0) + (rank_chunk[j + grid_size + 1] == 0);
+			if (alive_neighbors == 3) {
+				rank_chunk[j] = 0;
+			} else if (alive_neighbors != 2) {
+				rank_chunk[j] = 255;
+			}
+		}
+	} else if (world.rank() == world.size() - 1) {
+		world.send(next_rank, 2, rank_chunk.data() + rank_rows * grid_size, grid_size);
+		world.recv(prev_rank, 2, rank_chunk.data(), grid_size);
+		world.recv(next_rank, 1, rank_chunk.data() + (rank_rows + 1) * grid_size, grid_size);
+	}
 }
 
 int main(int argc, char **argv)
