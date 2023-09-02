@@ -238,9 +238,9 @@ int main(int argc, char **argv)
 		const auto evolution_type = program.get<unsigned char>("-e");
 
 		if (evolution_type == 1) {
-			rank_chunk = evolve_static(rank_chunk, rank_rows, grid_size, simulation_steps, snapshotting_period, rank_file_offset_streampos, prev_rank, next_rank, world);
+			evolve_static(rank_chunk, rank_rows, grid_size, simulation_steps, snapshotting_period, rank_file_offset_streampos, prev_rank, next_rank, world);
 		} else if (evolution_type == 0) {
-
+			evolve_ordered(rank_chunk, rank_rows, grid_size, simulation_steps, snapshotting_period, rank_file_offset_streampos, prev_rank, next_rank, world);
 		}
 
 	} else {
