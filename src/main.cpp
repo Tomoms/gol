@@ -94,7 +94,7 @@ std::pair<ulong, ulong> compute_rank_chunk_bounds(ulong grid_size, mpi::communic
 	return { rank_rows, rank_offset };
 }
 
-PGM_HOLDER evolve_static(PGM_HOLDER& rank_chunk, ulong rank_rows, ulong grid_size, uint simulation_steps, uint snapshotting_period, std::streampos& rank_file_offset_streampos, int prev_rank, int next_rank, mpi::communicator world)
+void evolve_static(PGM_HOLDER& rank_chunk, ulong rank_rows, ulong grid_size, uint simulation_steps, uint snapshotting_period, std::streampos& rank_file_offset_streampos, int prev_rank, int next_rank, mpi::communicator world)
 {
 	PGM_HOLDER next_step_chunk((rank_rows + 2) * grid_size);
 	for (uint i = 0; i < simulation_steps; i++) {
