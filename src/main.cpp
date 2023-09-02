@@ -185,6 +185,15 @@ void evolve_ordered(PGM_HOLDER& rank_chunk, ulong rank_rows, ulong grid_size, ui
 		PgmUtils::write_header(checkpoint_filename, dimensions);
 	}
 	PgmUtils::write_chunk_to_file(checkpoint_filename, rank_chunk, rank_file_offset_streampos, grid_size, static_cast<MPI_Comm>(world));
+	if (world.rank() == 1) {
+		for (auto i = grid_size ; i < grid_size*6 ; i++) {
+			std::cout << uint(rank_chunk[i]) << " ";
+			if (i % grid_size == 0) {
+				std::cout<<"\n";
+			}
+		}
+		std::cout <<std::endl;
+	}
 }
 
 int main(int argc, char **argv)
