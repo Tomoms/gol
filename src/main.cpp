@@ -28,6 +28,9 @@
 
 namespace mpi = boost::mpi;
 
+int prev_rank, next_rank;
+ulong grid_size;
+
 void setup_parser(argparse::ArgumentParser& program)
 {
 	program.add_argument("-i")
@@ -82,7 +85,7 @@ std::string compute_checkpoint_filename(unsigned long step)
 	return "snapshot_" + suffix;
 }
 
-std::pair<ulong, ulong> compute_rank_chunk_bounds(ulong grid_size, mpi::communicator world)
+std::pair<ulong, ulong> compute_rank_chunk_bounds(mpi::communicator world)
 {
 	const auto base_rows_per_rank = grid_size / world.size();
 	auto rank_rows = base_rows_per_rank;
@@ -97,45 +100,37 @@ std::pair<ulong, ulong> compute_rank_chunk_bounds(ulong grid_size, mpi::communic
 	return { rank_rows, rank_offset };
 }
 
-void evolve_static(PGM_HOLDER& rank_chunk, ulong rank_rows, ulong grid_size, uint simulation_steps, uint snapshotting_period, std::streampos& rank_file_offset_streampos, int prev_rank, int next_rank, mpi::communicator world)
+PGM_HOLDER evolve_static(PGM_HOLDER& rank_chunk, mpi::communicator world)
 {
+	const ulong rank_rows = rank_chunk.size() / grid_size;
 	PGM_HOLDER next_step_chunk((rank_rows + 2) * grid_size);
-	for (uint i = 0; i < simulation_steps; i++) {
-		if (world.rank()) {
-			world.send(prev_rank, FIRST_ROW_OF_SENDING_RANK, rank_chunk.data() + grid_size, grid_size);
-			world.send(next_rank, LAST_ROW_OF_SENDING_RANK, rank_chunk.data() + rank_rows * grid_size, grid_size);
-			world.recv(prev_rank, LAST_ROW_OF_SENDING_RANK, rank_chunk.data(), grid_size);
-			world.recv(next_rank, FIRST_ROW_OF_SENDING_RANK, rank_chunk.data() + (rank_rows + 1) * grid_size, grid_size);
-		} else {
-			world.recv(prev_rank, LAST_ROW_OF_SENDING_RANK, rank_chunk.data(), grid_size);
-			world.recv(next_rank, FIRST_ROW_OF_SENDING_RANK, rank_chunk.data() + (rank_rows + 1) * grid_size, grid_size);
-			world.send(prev_rank, FIRST_ROW_OF_SENDING_RANK, rank_chunk.data() + grid_size, grid_size);
-			world.send(next_rank, LAST_ROW_OF_SENDING_RANK, rank_chunk.data() + rank_rows * grid_size, grid_size);
-		}
-		for (auto j = grid_size; j < (rank_rows + 1) * grid_size ; j++) {
-			char alive_neighbors = (rank_chunk[j - 1] == 0) + (rank_chunk[j + 1] == 0) + (rank_chunk[j - grid_size - 1] == 0) + (rank_chunk[j - grid_size] == 0) + (rank_chunk[j - grid_size + 1] == 0) + (rank_chunk[j + grid_size - 1] == 0) +(rank_chunk[j + grid_size] == 0) + (rank_chunk[j + grid_size + 1] == 0);
-			if (alive_neighbors == 3) {
-				next_step_chunk[j] = 0;
-			} else if (alive_neighbors == 2) {
-				next_step_chunk[j] = rank_chunk[j];
-			} else {
-				next_step_chunk[j] = 255;
-			}
-		}
-		if (i % snapshotting_period == 0) {
-			const auto checkpoint_filename = compute_checkpoint_filename(i);
-			if (!world.rank()) {
-				const SIZE_HOLDER dimensions{grid_size, grid_size};
-				PgmUtils::write_header(checkpoint_filename, dimensions);
-			}
-			PgmUtils::write_chunk_to_file(checkpoint_filename, rank_chunk, rank_file_offset_streampos, grid_size, static_cast<MPI_Comm>(world));
-		}
-		rank_chunk = next_step_chunk;
+	if (world.rank()) {
+		world.send(prev_rank, FIRST_ROW_OF_SENDING_RANK, rank_chunk.data() + grid_size, grid_size);
+		world.send(next_rank, LAST_ROW_OF_SENDING_RANK, rank_chunk.data() + rank_rows * grid_size, grid_size);
+		world.recv(prev_rank, LAST_ROW_OF_SENDING_RANK, rank_chunk.data(), grid_size);
+		world.recv(next_rank, FIRST_ROW_OF_SENDING_RANK, rank_chunk.data() + (rank_rows + 1) * grid_size, grid_size);
+	} else {
+		world.recv(prev_rank, LAST_ROW_OF_SENDING_RANK, rank_chunk.data(), grid_size);
+		world.recv(next_rank, FIRST_ROW_OF_SENDING_RANK, rank_chunk.data() + (rank_rows + 1) * grid_size, grid_size);
+		world.send(prev_rank, FIRST_ROW_OF_SENDING_RANK, rank_chunk.data() + grid_size, grid_size);
+		world.send(next_rank, LAST_ROW_OF_SENDING_RANK, rank_chunk.data() + rank_rows * grid_size, grid_size);
 	}
+	for (auto j = grid_size; j < (rank_rows + 1) * grid_size ; j++) {
+		char alive_neighbors = (rank_chunk[j - 1] == 0) + (rank_chunk[j + 1] == 0) + (rank_chunk[j - grid_size - 1] == 0) + (rank_chunk[j - grid_size] == 0) + (rank_chunk[j - grid_size + 1] == 0) + (rank_chunk[j + grid_size - 1] == 0) +(rank_chunk[j + grid_size] == 0) + (rank_chunk[j + grid_size + 1] == 0);
+		if (alive_neighbors == 3) {
+			next_step_chunk[j] = 0;
+		} else if (alive_neighbors == 2) {
+			next_step_chunk[j] = rank_chunk[j];
+		} else {
+			next_step_chunk[j] = 255;
+		}
+	}
+	return next_step_chunk;
 }
 
-void evolve_ordered(PGM_HOLDER& rank_chunk, ulong rank_rows, ulong grid_size, uint simulation_steps, uint snapshotting_period, std::streampos& rank_file_offset_streampos, int prev_rank, int next_rank, mpi::communicator world)
+PGM_HOLDER evolve_ordered(PGM_HOLDER& rank_chunk, mpi::communicator world)
 {
+	const ulong rank_rows = rank_chunk.size() / grid_size;
 	if (world.rank() == 0) {
 		world.recv(prev_rank, LAST_ROW_OF_SENDING_RANK, rank_chunk.data(), grid_size);
 		world.recv(next_rank, FIRST_ROW_OF_SENDING_RANK, rank_chunk.data() + (rank_rows + 1) * grid_size, grid_size);
@@ -179,21 +174,7 @@ void evolve_ordered(PGM_HOLDER& rank_chunk, ulong rank_rows, ulong grid_size, ui
 		}
 		world.send(next_rank, LAST_ROW_OF_SENDING_RANK, rank_chunk.data() + rank_rows * grid_size, grid_size);
 	}
-	const auto checkpoint_filename = compute_checkpoint_filename(0);
-	if (!world.rank()) {
-		const SIZE_HOLDER dimensions{grid_size, grid_size};
-		PgmUtils::write_header(checkpoint_filename, dimensions);
-	}
-	PgmUtils::write_chunk_to_file(checkpoint_filename, rank_chunk, rank_file_offset_streampos, grid_size, static_cast<MPI_Comm>(world));
-	if (world.rank() == 1) {
-		for (auto i = grid_size ; i < grid_size*6 ; i++) {
-			std::cout << uint(rank_chunk[i]) << " ";
-			if (i % grid_size == 0) {
-				std::cout<<"\n";
-			}
-		}
-		std::cout <<std::endl;
-	}
+	return rank_chunk;
 }
 
 int main(int argc, char **argv)
@@ -216,8 +197,8 @@ int main(int argc, char **argv)
 	const auto filename = program.get<std::string>("-f");
 
 	if (program["-i"] == true && program["-r"] == false) {
-		const auto grid_size = program.get<unsigned long>("-k");
-		auto [rank_rows, rank_offset] = compute_rank_chunk_bounds(grid_size, world);
+		grid_size = program.get<unsigned long>("-k");
+		auto [rank_rows, rank_offset] = compute_rank_chunk_bounds(world);
 		ALL_RANKS_PRINT("works on " << rank_rows * grid_size << " elements");
 
 		PGM_HOLDER rank_random_chunk = PgmUtils::generate_random_chunk(rank_rows * grid_size);
@@ -235,7 +216,6 @@ int main(int argc, char **argv)
 		ALL_RANKS_PRINT("offset " << rank_file_offset_streampos);
 		PgmUtils::write_chunk_to_file(filename, rank_random_chunk, rank_file_offset_streampos, 0, static_cast<MPI_Comm>(world));
 	} else if (program["-i"] == false && program["-r"] == true) {
-		ulong grid_size;
 		uint header_length;
 
 		// Rank 0 reads the header
@@ -254,24 +234,52 @@ int main(int argc, char **argv)
 		ALL_RANKS_PRINT("detected size of " << grid_size);
 		ALL_RANKS_PRINT("header length: " << header_length);
 
-		auto [rank_rows, rank_offset] = compute_rank_chunk_bounds(grid_size, world);
+		auto [rank_rows, rank_offset] = compute_rank_chunk_bounds(world);
 		ALL_RANKS_PRINT("will work on " << rank_rows << " rows, i.e. " << rank_rows * grid_size << " cells");
 		auto rank_file_offset = rank_offset + header_length;
 		std::streampos rank_file_offset_streampos = static_cast<std::streampos>(rank_file_offset);
 		ALL_RANKS_PRINT("offset " << rank_file_offset_streampos);
 		PGM_HOLDER rank_chunk = PgmUtils::read_chunk_from_file(filename, rank_rows * grid_size, rank_file_offset_streampos, grid_size, static_cast<MPI_Comm>(world));
 
-		int prev_rank = world.rank() - 1 >= 0 ? world.rank() - 1 : world.size() - 1;
-		int next_rank = world.rank() + 1 >= world.size() ? 0 : world.rank() + 1;
+		prev_rank = world.rank() - 1 >= 0 ? world.rank() - 1 : world.size() - 1;
+		next_rank = world.rank() + 1 >= world.size() ? 0 : world.rank() + 1;
 
 		const auto simulation_steps = program.get<unsigned int>("-n");
 		const auto snapshotting_period = program.get<unsigned int>("-s");
 		const auto evolution_type = program.get<unsigned char>("-e");
 
+		PGM_HOLDER (*evolver)(PGM_HOLDER&, mpi::communicator);
 		if (evolution_type == 1) {
-			evolve_static(rank_chunk, rank_rows, grid_size, simulation_steps, snapshotting_period, rank_file_offset_streampos, prev_rank, next_rank, world);
+			evolver = evolve_static;
 		} else if (evolution_type == 0) {
-			evolve_ordered(rank_chunk, rank_rows, grid_size, simulation_steps, snapshotting_period, rank_file_offset_streampos, prev_rank, next_rank, world);
+			evolver = evolve_ordered;
+		} else {
+			ONE_RANK_PRINTS(0, "Unknown evolution type. Quitting.");
+			ret = EXIT_FAILURE;
+			return ret;
+		}
+
+		for (uint i = 1; i <= simulation_steps; i++) {
+			rank_chunk = evolver(rank_chunk, world);
+			if (!snapshotting_period) {
+				if (i % snapshotting_period == 0) {
+					const auto checkpoint_filename = compute_checkpoint_filename(i);
+					if (!world.rank()) {
+						const SIZE_HOLDER dimensions{grid_size, grid_size};
+						PgmUtils::write_header(checkpoint_filename, dimensions);
+					}
+					PgmUtils::write_chunk_to_file(checkpoint_filename, rank_chunk, rank_file_offset_streampos, grid_size, static_cast<MPI_Comm>(world));
+				}
+			} else {
+				if (i == simulation_steps) {
+					const auto checkpoint_filename = compute_checkpoint_filename(i);
+					if (!world.rank()) {
+						const SIZE_HOLDER dimensions{grid_size, grid_size};
+						PgmUtils::write_header(checkpoint_filename, dimensions);
+					}
+					PgmUtils::write_chunk_to_file(checkpoint_filename, rank_chunk, rank_file_offset_streampos, grid_size, static_cast<MPI_Comm>(world));
+				}
+			}
 		}
 
 	} else {
