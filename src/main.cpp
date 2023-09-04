@@ -105,7 +105,7 @@ std::pair<ulong, ulong> compute_rank_chunk_bounds(mpi::communicator world)
 
 PGM_HOLDER evolve_static(PGM_HOLDER& rank_chunk, mpi::communicator world)
 {
-	const ulong rank_rows = rank_chunk.size() / grid_size;
+	const ulong rank_rows = (rank_chunk.size() / grid_size) - 2; // minus 2 halo rows
 	PGM_HOLDER next_step_chunk((rank_rows + 2) * grid_size);
 	if (world.rank()) {
 		world.send(prev_rank, FIRST_ROW_OF_SENDING_RANK, rank_chunk.data() + grid_size, grid_size);
@@ -133,7 +133,7 @@ PGM_HOLDER evolve_static(PGM_HOLDER& rank_chunk, mpi::communicator world)
 
 PGM_HOLDER evolve_ordered(PGM_HOLDER& rank_chunk, mpi::communicator world)
 {
-	const ulong rank_rows = rank_chunk.size() / grid_size;
+	const ulong rank_rows = (rank_chunk.size() / grid_size) - 2;
 	if (world.rank() == 0) {
 		world.recv(prev_rank, LAST_ROW_OF_SENDING_RANK, rank_chunk.data(), grid_size);
 		world.recv(next_rank, FIRST_ROW_OF_SENDING_RANK, rank_chunk.data() + (rank_rows + 1) * grid_size, grid_size);
