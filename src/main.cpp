@@ -180,6 +180,16 @@ PGM_HOLDER evolve_ordered(PGM_HOLDER& rank_chunk, mpi::communicator world)
 	return rank_chunk;
 }
 
+void save_snapshot(PGM_HOLDER& rank_chunk, int i, std::streampos rank_file_offset_streampos, mpi::communicator world)
+{
+	const auto checkpoint_filename = compute_checkpoint_filename(i);
+	if (!world.rank()) {
+		const SIZE_HOLDER dimensions{grid_size, grid_size};
+		PgmUtils::write_header(checkpoint_filename, dimensions);
+	}
+	PgmUtils::write_chunk_to_file(checkpoint_filename, rank_chunk, rank_file_offset_streampos, grid_size, static_cast<MPI_Comm>(world));
+}
+
 int main(int argc, char **argv)
 {
 	mpi::environment env(argc, argv);
@@ -266,21 +276,11 @@ int main(int argc, char **argv)
 			rank_chunk = evolver(rank_chunk, world);
 			if (!snapshotting_period) {
 				if (i % snapshotting_period == 0) {
-					const auto checkpoint_filename = compute_checkpoint_filename(i);
-					if (!world.rank()) {
-						const SIZE_HOLDER dimensions{grid_size, grid_size};
-						PgmUtils::write_header(checkpoint_filename, dimensions);
-					}
-					PgmUtils::write_chunk_to_file(checkpoint_filename, rank_chunk, rank_file_offset_streampos, grid_size, static_cast<MPI_Comm>(world));
+					save_snapshot(rank_chunk, i, rank_file_offset_streampos, world);
 				}
 			} else {
 				if (i == simulation_steps) {
-					const auto checkpoint_filename = compute_checkpoint_filename(i);
-					if (!world.rank()) {
-						const SIZE_HOLDER dimensions{grid_size, grid_size};
-						PgmUtils::write_header(checkpoint_filename, dimensions);
-					}
-					PgmUtils::write_chunk_to_file(checkpoint_filename, rank_chunk, rank_file_offset_streampos, grid_size, static_cast<MPI_Comm>(world));
+					save_snapshot(rank_chunk, i, rank_file_offset_streampos, world);
 				}
 			}
 		}
