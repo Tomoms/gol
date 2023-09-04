@@ -26,6 +26,9 @@
 #define FIRST_ROW_OF_SENDING_RANK	1
 #define LAST_ROW_OF_SENDING_RANK	2
 
+#define CELL_ALIVE	255
+#define CELL_DEAD	0
+
 namespace mpi = boost::mpi;
 
 int prev_rank, next_rank;
@@ -118,11 +121,11 @@ PGM_HOLDER evolve_static(PGM_HOLDER& rank_chunk, mpi::communicator world)
 	for (auto j = grid_size; j < (rank_rows + 1) * grid_size ; j++) {
 		char alive_neighbors = (rank_chunk[j - 1] == 0) + (rank_chunk[j + 1] == 0) + (rank_chunk[j - grid_size - 1] == 0) + (rank_chunk[j - grid_size] == 0) + (rank_chunk[j - grid_size + 1] == 0) + (rank_chunk[j + grid_size - 1] == 0) +(rank_chunk[j + grid_size] == 0) + (rank_chunk[j + grid_size + 1] == 0);
 		if (alive_neighbors == 3) {
-			next_step_chunk[j] = 0;
+			next_step_chunk[j] = CELL_ALIVE;
 		} else if (alive_neighbors == 2) {
 			next_step_chunk[j] = rank_chunk[j];
 		} else {
-			next_step_chunk[j] = 255;
+			next_step_chunk[j] = CELL_DEAD;
 		}
 	}
 	return next_step_chunk;
@@ -137,9 +140,9 @@ PGM_HOLDER evolve_ordered(PGM_HOLDER& rank_chunk, mpi::communicator world)
 		for (auto j = grid_size; j < (rank_rows + 1) * grid_size ; j++) {
 			char alive_neighbors = (rank_chunk[j - 1] == 0) + (rank_chunk[j + 1] == 0) + (rank_chunk[j - grid_size - 1] == 0) + (rank_chunk[j - grid_size] == 0) + (rank_chunk[j - grid_size + 1] == 0) + (rank_chunk[j + grid_size - 1] == 0) +(rank_chunk[j + grid_size] == 0) + (rank_chunk[j + grid_size + 1] == 0);
 			if (alive_neighbors == 3) {
-				rank_chunk[j] = 0;
+				rank_chunk[j] = CELL_ALIVE;
 			} else if (alive_neighbors != 2) {
-				rank_chunk[j] = 255;
+				rank_chunk[j] = CELL_DEAD;
 			}
 		}
 		world.send(prev_rank, FIRST_ROW_OF_SENDING_RANK, rank_chunk.data() + grid_size, grid_size);
@@ -153,9 +156,9 @@ PGM_HOLDER evolve_ordered(PGM_HOLDER& rank_chunk, mpi::communicator world)
 		for (auto j = grid_size; j < (rank_rows + 1) * grid_size ; j++) {
 			char alive_neighbors = (rank_chunk[j - 1] == 0) + (rank_chunk[j + 1] == 0) + (rank_chunk[j - grid_size - 1] == 0) + (rank_chunk[j - grid_size] == 0) + (rank_chunk[j - grid_size + 1] == 0) + (rank_chunk[j + grid_size - 1] == 0) +(rank_chunk[j + grid_size] == 0) + (rank_chunk[j + grid_size + 1] == 0);
 			if (alive_neighbors == 3) {
-				rank_chunk[j] = 0;
+				rank_chunk[j] = CELL_ALIVE;
 			} else if (alive_neighbors != 2) {
-				rank_chunk[j] = 255;
+				rank_chunk[j] = CELL_DEAD;
 			}
 		}
 	} else {
@@ -167,9 +170,9 @@ PGM_HOLDER evolve_ordered(PGM_HOLDER& rank_chunk, mpi::communicator world)
 		for (auto j = grid_size; j < (rank_rows + 1) * grid_size ; j++) {
 			char alive_neighbors = (rank_chunk[j - 1] == 0) + (rank_chunk[j + 1] == 0) + (rank_chunk[j - grid_size - 1] == 0) + (rank_chunk[j - grid_size] == 0) + (rank_chunk[j - grid_size + 1] == 0) + (rank_chunk[j + grid_size - 1] == 0) +(rank_chunk[j + grid_size] == 0) + (rank_chunk[j + grid_size + 1] == 0);
 			if (alive_neighbors == 3) {
-				rank_chunk[j] = 0;
+				rank_chunk[j] = CELL_ALIVE;
 			} else if (alive_neighbors != 2) {
-				rank_chunk[j] = 255;
+				rank_chunk[j] = CELL_DEAD;
 			}
 		}
 		world.send(next_rank, LAST_ROW_OF_SENDING_RANK, rank_chunk.data() + rank_rows * grid_size, grid_size);
