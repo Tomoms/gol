@@ -274,7 +274,7 @@ int main(int argc, char **argv)
 
 		for (uint i = 1; i <= simulation_steps; i++) {
 			rank_chunk = evolver(rank_chunk, world);
-			if (!snapshotting_period) {
+			if (snapshotting_period) {
 				if (i % snapshotting_period == 0) {
 					save_snapshot(rank_chunk, i, rank_file_offset_streampos, world);
 				}
