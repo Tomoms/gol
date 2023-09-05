@@ -12,14 +12,10 @@
 #ifdef DEBUG
 #define ALL_RANKS_PRINT(x) \
 	std::cout << "Rank " << world.rank() << ": " << x << std::endl
-#else
-#define ALL_RANKS_PRINT(x) do {} while (0)
-#endif
-
-#ifdef DEBUG
 #define ONE_RANK_PRINTS(r, x) \
 	if (world.rank() == r) std::cout << "Rank " << r << ": " << x << std::endl
 #else
+#define ALL_RANKS_PRINT(x) do {} while (0)
 #define ONE_RANK_PRINTS(r, x) do {} while (0)
 #endif
 
