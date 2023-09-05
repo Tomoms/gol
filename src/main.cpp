@@ -148,6 +148,16 @@ PGM_HOLDER evolve_static(PGM_HOLDER& rank_chunk, mpi::communicator world)
 	return next_step_chunk;
 }
 
+inline void update_cell_ordered(PGM_HOLDER& rank_chunk, ulong j)
+{
+	char alive_neighbors = count_alive_neighbors(rank_chunk, j);
+	if (alive_neighbors == 3) {
+		rank_chunk[j] = CELL_ALIVE;
+	} else if (alive_neighbors != 2) {
+		rank_chunk[j] = CELL_DEAD;
+	}
+}
+
 PGM_HOLDER evolve_ordered(PGM_HOLDER& rank_chunk, mpi::communicator world)
 {
 	const ulong rank_rows = (rank_chunk.size() / grid_size) - 2;
@@ -155,12 +165,7 @@ PGM_HOLDER evolve_ordered(PGM_HOLDER& rank_chunk, mpi::communicator world)
 		world.recv(prev_rank, LAST_ROW_OF_SENDING_RANK, rank_chunk.data(), grid_size);
 		world.recv(next_rank, FIRST_ROW_OF_SENDING_RANK, rank_chunk.data() + (rank_rows + 1) * grid_size, grid_size);
 		for (auto j = grid_size; j < (rank_rows + 1) * grid_size ; j++) {
-			char alive_neighbors = count_alive_neighbors(rank_chunk, j);
-			if (alive_neighbors == 3) {
-				rank_chunk[j] = CELL_ALIVE;
-			} else if (alive_neighbors != 2) {
-				rank_chunk[j] = CELL_DEAD;
-			}
+			update_cell_ordered(rank_chunk, j);
 		}
 		world.send(prev_rank, FIRST_ROW_OF_SENDING_RANK, rank_chunk.data() + grid_size, grid_size);
 		world.send(next_rank, LAST_ROW_OF_SENDING_RANK, rank_chunk.data() + rank_rows * grid_size, grid_size);
@@ -171,12 +176,7 @@ PGM_HOLDER evolve_ordered(PGM_HOLDER& rank_chunk, mpi::communicator world)
 		world.recv(next_rank, FIRST_ROW_OF_SENDING_RANK, rank_chunk.data() + (rank_rows + 1) * grid_size, grid_size);
 		world.recv(prev_rank, LAST_ROW_OF_SENDING_RANK, rank_chunk.data(), grid_size);
 		for (auto j = grid_size; j < (rank_rows + 1) * grid_size ; j++) {
-			char alive_neighbors = count_alive_neighbors(rank_chunk, j);
-			if (alive_neighbors == 3) {
-				rank_chunk[j] = CELL_ALIVE;
-			} else if (alive_neighbors != 2) {
-				rank_chunk[j] = CELL_DEAD;
-			}
+			update_cell_ordered(rank_chunk, j);
 		}
 	} else {
 		world.send(prev_rank, FIRST_ROW_OF_SENDING_RANK, rank_chunk.data() + grid_size, grid_size);
@@ -185,12 +185,7 @@ PGM_HOLDER evolve_ordered(PGM_HOLDER& rank_chunk, mpi::communicator world)
 		world.recv(prev_rank, LAST_ROW_OF_SENDING_RANK, rank_chunk.data(), grid_size);
 		// now this rank can compute too
 		for (auto j = grid_size; j < (rank_rows + 1) * grid_size ; j++) {
-			char alive_neighbors = count_alive_neighbors(rank_chunk, j);
-			if (alive_neighbors == 3) {
-				rank_chunk[j] = CELL_ALIVE;
-			} else if (alive_neighbors != 2) {
-				rank_chunk[j] = CELL_DEAD;
-			}
+			update_cell_ordered(rank_chunk, j);
 		}
 		world.send(next_rank, LAST_ROW_OF_SENDING_RANK, rank_chunk.data() + rank_rows * grid_size, grid_size);
 	}
