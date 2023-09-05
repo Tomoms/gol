@@ -34,6 +34,15 @@
 #define IS_BOTTOM_LEFT_NEIGHBOR_ALIVE(index) IS_CELL_ALIVE(index + grid_size - 1)
 #define IS_BOTTOM_RIGHT_NEIGHBOR_ALIVE(index) IS_CELL_ALIVE(index + grid_size + 1)
 
+#define SEND_LAST_ROW \
+	world.send(next_rank, LAST_ROW_OF_SENDING_RANK, rank_chunk.data() + rank_rows * grid_size, grid_size);
+#define SEND_FIRST_ROW \
+	world.send(prev_rank, FIRST_ROW_OF_SENDING_RANK, rank_chunk.data() + grid_size, grid_size);
+#define RECEIVE_LAST_ROW \
+	world.recv(prev_rank, LAST_ROW_OF_SENDING_RANK, rank_chunk.data(), grid_size);
+#define RECEIVE_FIRST_ROW \
+	world.recv(next_rank, FIRST_ROW_OF_SENDING_RANK, rank_chunk.data() + (rank_rows + 1) * grid_size, grid_size);
+
 namespace mpi = boost::mpi;
 
 int prev_rank, next_rank;
@@ -121,15 +130,15 @@ PGM_HOLDER evolve_static(PGM_HOLDER& rank_chunk, mpi::communicator world)
 	const ulong rank_rows = (rank_chunk.size() / grid_size) - 2; // minus 2 halo rows
 	PGM_HOLDER next_step_chunk((rank_rows + 2) * grid_size);
 	if (world.rank()) {
-		world.send(prev_rank, FIRST_ROW_OF_SENDING_RANK, rank_chunk.data() + grid_size, grid_size);
-		world.send(next_rank, LAST_ROW_OF_SENDING_RANK, rank_chunk.data() + rank_rows * grid_size, grid_size);
-		world.recv(prev_rank, LAST_ROW_OF_SENDING_RANK, rank_chunk.data(), grid_size);
-		world.recv(next_rank, FIRST_ROW_OF_SENDING_RANK, rank_chunk.data() + (rank_rows + 1) * grid_size, grid_size);
+		SEND_FIRST_ROW;
+		SEND_LAST_ROW;
+		RECEIVE_LAST_ROW;
+		RECEIVE_FIRST_ROW;
 	} else {
-		world.recv(prev_rank, LAST_ROW_OF_SENDING_RANK, rank_chunk.data(), grid_size);
-		world.recv(next_rank, FIRST_ROW_OF_SENDING_RANK, rank_chunk.data() + (rank_rows + 1) * grid_size, grid_size);
-		world.send(prev_rank, FIRST_ROW_OF_SENDING_RANK, rank_chunk.data() + grid_size, grid_size);
-		world.send(next_rank, LAST_ROW_OF_SENDING_RANK, rank_chunk.data() + rank_rows * grid_size, grid_size);
+		RECEIVE_LAST_ROW;
+		RECEIVE_FIRST_ROW;
+		SEND_FIRST_ROW;
+		SEND_LAST_ROW;
 	}
 	for (auto j = grid_size; j < (rank_rows + 1) * grid_size ; j++) {
 		char alive_neighbors = count_alive_neighbors(rank_chunk, j);
@@ -158,32 +167,29 @@ PGM_HOLDER evolve_ordered(PGM_HOLDER& rank_chunk, mpi::communicator world)
 {
 	const ulong rank_rows = (rank_chunk.size() / grid_size) - 2;
 	if (world.rank() == 0) {
-		world.recv(prev_rank, LAST_ROW_OF_SENDING_RANK, rank_chunk.data(), grid_size);
-		world.recv(next_rank, FIRST_ROW_OF_SENDING_RANK, rank_chunk.data() + (rank_rows + 1) * grid_size, grid_size);
+		RECEIVE_LAST_ROW;
+		RECEIVE_FIRST_ROW;
 		for (auto j = grid_size; j < (rank_rows + 1) * grid_size ; j++) {
 			update_cell_ordered(rank_chunk, j);
 		}
-		world.send(prev_rank, FIRST_ROW_OF_SENDING_RANK, rank_chunk.data() + grid_size, grid_size);
-		world.send(next_rank, LAST_ROW_OF_SENDING_RANK, rank_chunk.data() + rank_rows * grid_size, grid_size);
+		SEND_FIRST_ROW;
+		SEND_LAST_ROW;
 	} else if (world.rank() == world.size() - 1) {
-		world.send(next_rank, LAST_ROW_OF_SENDING_RANK, rank_chunk.data() + rank_rows * grid_size, grid_size);
-		world.send(prev_rank, FIRST_ROW_OF_SENDING_RANK, rank_chunk.data() + grid_size, grid_size);
-		// the computation chain starts here. Wait for data from prev_rank and 0
-		world.recv(next_rank, FIRST_ROW_OF_SENDING_RANK, rank_chunk.data() + (rank_rows + 1) * grid_size, grid_size);
-		world.recv(prev_rank, LAST_ROW_OF_SENDING_RANK, rank_chunk.data(), grid_size);
+		SEND_LAST_ROW;
+		SEND_FIRST_ROW;
+		RECEIVE_FIRST_ROW;
+		RECEIVE_LAST_ROW;
 		for (auto j = grid_size; j < (rank_rows + 1) * grid_size ; j++) {
 			update_cell_ordered(rank_chunk, j);
 		}
 	} else {
-		world.send(prev_rank, FIRST_ROW_OF_SENDING_RANK, rank_chunk.data() + grid_size, grid_size);
-		world.recv(next_rank, FIRST_ROW_OF_SENDING_RANK, rank_chunk.data() + (rank_rows + 1) * grid_size, grid_size);
-		// prev_rank has computed, now it'll send this rank its last row
-		world.recv(prev_rank, LAST_ROW_OF_SENDING_RANK, rank_chunk.data(), grid_size);
-		// now this rank can compute too
+		SEND_FIRST_ROW;
+		RECEIVE_FIRST_ROW;
+		RECEIVE_LAST_ROW;
 		for (auto j = grid_size; j < (rank_rows + 1) * grid_size ; j++) {
 			update_cell_ordered(rank_chunk, j);
 		}
-		world.send(next_rank, LAST_ROW_OF_SENDING_RANK, rank_chunk.data() + rank_rows * grid_size, grid_size);
+		SEND_LAST_ROW;
 	}
 	return rank_chunk;
 }
