@@ -28,6 +28,15 @@
 
 #define CELL_ALIVE	255
 #define CELL_DEAD	0
+#define IS_CELL_ALIVE(index) (rank_chunk[index] == CELL_ALIVE)
+#define IS_TOP_NEIGHBOR_ALIVE(index) IS_CELL_ALIVE(index - grid_size)
+#define IS_TOP_LEFT_NEIGHBOR_ALIVE(index) IS_CELL_ALIVE(index - grid_size - 1)
+#define IS_TOP_RIGHT_NEIGHBOR_ALIVE(index) IS_CELL_ALIVE(index - grid_size + 1)
+#define IS_LEFT_NEIGHBOR_ALIVE(index) IS_CELL_ALIVE(index - 1)
+#define IS_RIGHT_NEIGHBOR_ALIVE(index) IS_CELL_ALIVE(index + 1)
+#define IS_BOTTOM_NEIGHBOR_ALIVE(index) IS_CELL_ALIVE(index + grid_size)
+#define IS_BOTTOM_LEFT_NEIGHBOR_ALIVE(index) IS_CELL_ALIVE(index + grid_size - 1)
+#define IS_BOTTOM_RIGHT_NEIGHBOR_ALIVE(index) IS_CELL_ALIVE(index + grid_size + 1)
 
 namespace mpi = boost::mpi;
 
@@ -105,10 +114,10 @@ std::pair<ulong, ulong> compute_rank_chunk_bounds(mpi::communicator world)
 
 inline char count_alive_neighbors(PGM_HOLDER& rank_chunk, ulong j)
 {
-	return (rank_chunk[j - 1] == CELL_ALIVE) + (rank_chunk[j + 1] == CELL_ALIVE) +
-			(rank_chunk[j - grid_size - 1] == CELL_ALIVE) + (rank_chunk[j - grid_size] == CELL_ALIVE) +
-			(rank_chunk[j - grid_size + 1] == CELL_ALIVE) + (rank_chunk[j + grid_size - 1] == CELL_ALIVE) +
-			(rank_chunk[j + grid_size] == CELL_ALIVE) + (rank_chunk[j + grid_size + 1] == CELL_ALIVE);
+	return IS_BOTTOM_LEFT_NEIGHBOR_ALIVE(j) + IS_BOTTOM_NEIGHBOR_ALIVE(j) +
+		IS_BOTTOM_RIGHT_NEIGHBOR_ALIVE(j) + IS_LEFT_NEIGHBOR_ALIVE(j) +
+		IS_RIGHT_NEIGHBOR_ALIVE(j) + IS_TOP_LEFT_NEIGHBOR_ALIVE(j) +
+		IS_TOP_NEIGHBOR_ALIVE(j) + IS_TOP_RIGHT_NEIGHBOR_ALIVE(j);
 }
 
 PGM_HOLDER evolve_static(PGM_HOLDER& rank_chunk, mpi::communicator world)
