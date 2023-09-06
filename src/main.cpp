@@ -8,7 +8,6 @@
 #include <PgmUtils.hpp>
 #include <GameOfLife.hpp>
 #include <mpi.h>
-#include <omp.h>
 
 #ifdef DEBUG
 #define ALL_RANKS_PRINT(x) \
@@ -39,7 +38,6 @@
 	world.recv(next_rank, FIRST_ROW_OF_SENDING_RANK, rank_chunk.data() + (rank_rows + 1) * grid_size, grid_size);
 
 namespace mpi = boost::mpi;
-namespace mt  = mpi::threading;
 
 int prev_rank, next_rank;
 ulong grid_size;
@@ -187,7 +185,7 @@ inline char count_alive_neighbors(PGM_HOLDER& rank_chunk, ulong j)
 		IS_TOP_NEIGHBOR_ALIVE(j) + is_top_right_neighbor_alive(rank_chunk, j);
 }
 
-PGM_HOLDER evolve_static(PGM_HOLDER& rank_chunk, mpi::communicator world, int i)
+PGM_HOLDER evolve_static(PGM_HOLDER& rank_chunk, mpi::communicator world)
 {
 	const ulong rank_rows = (rank_chunk.size() / grid_size) - 2; // minus 2 halo rows
 	PGM_HOLDER next_step_chunk((rank_rows + 2) * grid_size);
@@ -202,25 +200,15 @@ PGM_HOLDER evolve_static(PGM_HOLDER& rank_chunk, mpi::communicator world, int i)
 		SEND_FIRST_ROW;
 		SEND_LAST_ROW;
 	}
-
-	int rank = world.rank();
-	for (auto startpos = grid_size; startpos < rank_chunk.size() - grid_size; startpos += grid_size) {
-		#pragma omp task shared(rank_chunk, next_step_chunk, grid_size)
-		{
-			if (i==14)
-				std::cout << "rank " << rank << " starting at " << startpos << ", executed by " << omp_get_thread_num() << std::endl;
-			for (auto j = startpos; j < startpos + grid_size; j++) {
-				char alive_neighbors = count_alive_neighbors(rank_chunk, j);
-				if (alive_neighbors == 3) {
-					next_step_chunk[j] = CELL_ALIVE;
-				} else if (alive_neighbors == 2) {
-					next_step_chunk[j] = rank_chunk[j];
-				} else {
-					next_step_chunk[j] = CELL_DEAD;
-				}
-			}
+	for (auto j = grid_size; j < (rank_rows + 1) * grid_size ; j++) {
+		char alive_neighbors = count_alive_neighbors(rank_chunk, j);
+		if (alive_neighbors == 3) {
+			next_step_chunk[j] = CELL_ALIVE;
+		} else if (alive_neighbors == 2) {
+			next_step_chunk[j] = rank_chunk[j];
+		} else {
+			next_step_chunk[j] = CELL_DEAD;
 		}
-
 	}
 	return next_step_chunk;
 }
@@ -235,7 +223,7 @@ inline void update_cell_ordered(PGM_HOLDER& rank_chunk, ulong j)
 	}
 }
 
-PGM_HOLDER evolve_ordered(PGM_HOLDER& rank_chunk, mpi::communicator world, int i)
+PGM_HOLDER evolve_ordered(PGM_HOLDER& rank_chunk, mpi::communicator world)
 {
 	const ulong rank_rows = (rank_chunk.size() / grid_size) - 2;
 	if (world.rank() == 0) {
@@ -278,10 +266,7 @@ void save_snapshot(PGM_HOLDER& rank_chunk, int i, std::streampos rank_file_offse
 
 int main(int argc, char **argv)
 {
-	mpi::environment env(argc, argv, mt::funneled);
-	if (env.thread_level() < mt::funneled) {
-		env.abort(-1);
-	}
+	mpi::environment env(argc, argv);
 	mpi::communicator world;
 	int ret = EXIT_SUCCESS;
 
@@ -350,7 +335,7 @@ int main(int argc, char **argv)
 		const auto snapshotting_period = program.get<unsigned int>("-s");
 		const auto evolution_type = program.get<unsigned char>("-e");
 
-		PGM_HOLDER (*evolver)(PGM_HOLDER&, mpi::communicator, int);
+		PGM_HOLDER (*evolver)(PGM_HOLDER&, mpi::communicator);
 		if (evolution_type == 1) {
 			evolver = evolve_static;
 		} else if (evolution_type == 0) {
@@ -361,24 +346,19 @@ int main(int argc, char **argv)
 			return ret;
 		}
 
-		#pragma omp parallel
-		{
-		#pragma omp master
-			{
-				for (uint i = 1; i <= simulation_steps; i++) {
-					rank_chunk = evolver(rank_chunk, world, i);
-					if (snapshotting_period) {
-						if (i % snapshotting_period == 0) {
-							save_snapshot(rank_chunk, i, rank_file_offset_streampos, world);
-						}
-					} else {
-						if (i == simulation_steps) {
-							save_snapshot(rank_chunk, i, rank_file_offset_streampos, world);
-						}
-					}
+		for (uint i = 1; i <= simulation_steps; i++) {
+			rank_chunk = evolver(rank_chunk, world);
+			if (snapshotting_period) {
+				if (i % snapshotting_period == 0) {
+					save_snapshot(rank_chunk, i, rank_file_offset_streampos, world);
+				}
+			} else {
+				if (i == simulation_steps) {
+					save_snapshot(rank_chunk, i, rank_file_offset_streampos, world);
 				}
 			}
 		}
+
 	} else {
 		ONE_RANK_PRINTS(0, "invalid arguments, quitting.");
 		ret = EXIT_FAILURE;
