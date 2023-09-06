@@ -25,15 +25,9 @@
 
 #define CELL_ALIVE	255
 #define CELL_DEAD	0
-#define IS_CELL_ALIVE(index) (rank_chunk[index] == CELL_ALIVE)
+#define IS_CELL_ALIVE(index) rank_chunk[index] == CELL_ALIVE
 #define IS_TOP_NEIGHBOR_ALIVE(index) IS_CELL_ALIVE(index - grid_size)
-#define IS_TOP_LEFT_NEIGHBOR_ALIVE(index) IS_CELL_ALIVE(index - grid_size - 1)
-#define IS_TOP_RIGHT_NEIGHBOR_ALIVE(index) IS_CELL_ALIVE(index - grid_size + 1)
-#define IS_LEFT_NEIGHBOR_ALIVE(index) IS_CELL_ALIVE(index - 1)
-#define IS_RIGHT_NEIGHBOR_ALIVE(index) IS_CELL_ALIVE(index + 1)
 #define IS_BOTTOM_NEIGHBOR_ALIVE(index) IS_CELL_ALIVE(index + grid_size)
-#define IS_BOTTOM_LEFT_NEIGHBOR_ALIVE(index) IS_CELL_ALIVE(index + grid_size - 1)
-#define IS_BOTTOM_RIGHT_NEIGHBOR_ALIVE(index) IS_CELL_ALIVE(index + grid_size + 1)
 
 #define SEND_LAST_ROW \
 	world.send(next_rank, LAST_ROW_OF_SENDING_RANK, rank_chunk.data() + rank_rows * grid_size, grid_size);
@@ -49,6 +43,72 @@ namespace mt  = mpi::threading;
 
 int prev_rank, next_rank;
 ulong grid_size;
+
+inline bool is_top_left_neighbor_alive(PGM_HOLDER& rank_chunk, ulong index)
+{
+	bool alive = 0;
+	if (index % grid_size == 0) { // left edge of the matrix
+		alive = IS_CELL_ALIVE(index - 1);
+	} else {
+		alive = IS_CELL_ALIVE(index - grid_size - 1);
+	}
+	return alive;
+}
+
+inline bool is_top_right_neighbor_alive(PGM_HOLDER& rank_chunk, ulong index)
+{
+	bool alive = 0;
+	if ((index + 1) % grid_size == 0) { // right edge of the matrix
+		alive = IS_CELL_ALIVE(index + 1 - 2 * grid_size);
+	} else {
+		alive = IS_CELL_ALIVE(index - grid_size + 1);
+	}
+	return alive;
+}
+
+inline bool is_left_neighbor_alive(PGM_HOLDER& rank_chunk, ulong index)
+{
+	bool alive = 0;
+	if (index % grid_size == 0) { // left edge of the matrix
+		alive = IS_CELL_ALIVE(index + grid_size - 1);
+	} else {
+		alive = IS_CELL_ALIVE(index - 1);
+	}
+	return alive;
+}
+
+inline bool is_right_neighbor_alive(PGM_HOLDER& rank_chunk, ulong index)
+{
+	bool alive = 0;
+	if ((index + 1) % grid_size == 0) { // right edge of the matrix
+		alive = IS_CELL_ALIVE(index - grid_size + 1);
+	} else {
+		alive = IS_CELL_ALIVE(index + 1);
+	}
+	return alive;
+}
+
+inline bool is_bottom_left_neighbor_alive(PGM_HOLDER& rank_chunk, ulong index)
+{
+	bool alive = 0;
+	if (index % grid_size == 0) { // left edge of the matrix
+		alive = IS_CELL_ALIVE(index - 1);
+	} else {
+		alive = IS_CELL_ALIVE(index + 2 * grid_size - 1);
+	}
+	return alive;
+}
+
+inline bool is_bottom_right_neighbor_alive(PGM_HOLDER& rank_chunk, ulong index)
+{
+	bool alive = 0;
+	if ((index + 1) % grid_size == 0) { // right edge of the matrix
+		alive = IS_CELL_ALIVE(index + 1);
+	} else {
+		alive = IS_CELL_ALIVE(index + grid_size + 1);
+	}
+	return alive;
+}
 
 void setup_parser(argparse::ArgumentParser& program)
 {
@@ -121,10 +181,10 @@ std::pair<ulong, ulong> compute_rank_chunk_bounds(mpi::communicator world)
 
 inline char count_alive_neighbors(PGM_HOLDER& rank_chunk, ulong j)
 {
-	return IS_BOTTOM_LEFT_NEIGHBOR_ALIVE(j) + IS_BOTTOM_NEIGHBOR_ALIVE(j) +
-		IS_BOTTOM_RIGHT_NEIGHBOR_ALIVE(j) + IS_LEFT_NEIGHBOR_ALIVE(j) +
-		IS_RIGHT_NEIGHBOR_ALIVE(j) + IS_TOP_LEFT_NEIGHBOR_ALIVE(j) +
-		IS_TOP_NEIGHBOR_ALIVE(j) + IS_TOP_RIGHT_NEIGHBOR_ALIVE(j);
+	return is_bottom_left_neighbor_alive(rank_chunk, j) + IS_BOTTOM_NEIGHBOR_ALIVE(j) +
+		is_bottom_right_neighbor_alive(rank_chunk, j) + is_left_neighbor_alive(rank_chunk, j) +
+		is_right_neighbor_alive(rank_chunk, j) + is_top_left_neighbor_alive(rank_chunk, j) +
+		IS_TOP_NEIGHBOR_ALIVE(j) + is_top_right_neighbor_alive(rank_chunk, j);
 }
 
 PGM_HOLDER evolve_static(PGM_HOLDER& rank_chunk, mpi::communicator world, int i)
@@ -301,31 +361,28 @@ int main(int argc, char **argv)
 			return ret;
 		}
 
-#pragma omp parallel
-{
-#pragma omp master
-	{
-		for (uint i = 1; i <= simulation_steps; i++) {
-			rank_chunk = evolver(rank_chunk, world, i);
-			if (snapshotting_period) {
-				if (i % snapshotting_period == 0) {
-					save_snapshot(rank_chunk, i, rank_file_offset_streampos, world);
-				}
-			} else {
-				if (i == simulation_steps) {
-					save_snapshot(rank_chunk, i, rank_file_offset_streampos, world);
+		#pragma omp parallel
+		{
+		#pragma omp master
+			{
+				for (uint i = 1; i <= simulation_steps; i++) {
+					rank_chunk = evolver(rank_chunk, world, i);
+					if (snapshotting_period) {
+						if (i % snapshotting_period == 0) {
+							save_snapshot(rank_chunk, i, rank_file_offset_streampos, world);
+						}
+					} else {
+						if (i == simulation_steps) {
+							save_snapshot(rank_chunk, i, rank_file_offset_streampos, world);
+						}
+					}
 				}
 			}
 		}
-	}
-}
-
 	} else {
 		ONE_RANK_PRINTS(0, "invalid arguments, quitting.");
 		ret = EXIT_FAILURE;
 	}
-
-	std::cout << "we're here" << std::endl;
 
 	return ret;
 }
