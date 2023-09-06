@@ -25,8 +25,6 @@
 #define CELL_ALIVE	255
 #define CELL_DEAD	0
 #define IS_CELL_ALIVE(index) rank_chunk[index] == CELL_ALIVE
-#define IS_TOP_NEIGHBOR_ALIVE(index) IS_CELL_ALIVE(index - grid_size)
-#define IS_BOTTOM_NEIGHBOR_ALIVE(index) IS_CELL_ALIVE(index + grid_size)
 
 #define SEND_LAST_ROW \
 	world.send(next_rank, LAST_ROW_OF_SENDING_RANK, rank_chunk.data() + rank_rows * grid_size, grid_size);
@@ -90,9 +88,9 @@ inline bool is_bottom_left_neighbor_alive(PGM_HOLDER& rank_chunk, ulong index)
 {
 	bool alive = 0;
 	if (index % grid_size == 0) { // left edge of the matrix
-		alive = IS_CELL_ALIVE(index - 1);
+		alive = IS_CELL_ALIVE(index - 1 + 2 * grid_size);
 	} else {
-		alive = IS_CELL_ALIVE(index + 2 * grid_size - 1);
+		alive = IS_CELL_ALIVE(index + grid_size - 1);
 	}
 	return alive;
 }
@@ -177,12 +175,16 @@ std::pair<ulong, ulong> compute_rank_chunk_bounds(mpi::communicator world)
 	return { rank_rows, rank_offset };
 }
 
+#define DEBUG_CELL 22
 inline char count_alive_neighbors(PGM_HOLDER& rank_chunk, ulong j)
 {
-	return is_bottom_left_neighbor_alive(rank_chunk, j) + IS_BOTTOM_NEIGHBOR_ALIVE(j) +
+	char result = is_bottom_left_neighbor_alive(rank_chunk, j) + (rank_chunk[j + grid_size] == CELL_ALIVE) +
 		is_bottom_right_neighbor_alive(rank_chunk, j) + is_left_neighbor_alive(rank_chunk, j) +
 		is_right_neighbor_alive(rank_chunk, j) + is_top_left_neighbor_alive(rank_chunk, j) +
-		IS_TOP_NEIGHBOR_ALIVE(j) + is_top_right_neighbor_alive(rank_chunk, j);
+		(rank_chunk[j - grid_size] == CELL_ALIVE) + is_top_right_neighbor_alive(rank_chunk, j);
+	if (j == DEBUG_CELL)
+		std::cout << "count_alive_neighbors returning " << uint(result) << std::endl;
+	return result;
 }
 
 PGM_HOLDER evolve_static(PGM_HOLDER& rank_chunk, mpi::communicator world)
@@ -203,10 +205,13 @@ PGM_HOLDER evolve_static(PGM_HOLDER& rank_chunk, mpi::communicator world)
 	for (auto j = grid_size; j < (rank_rows + 1) * grid_size ; j++) {
 		char alive_neighbors = count_alive_neighbors(rank_chunk, j);
 		if (alive_neighbors == 3) {
+			if (j == DEBUG_CELL) ONE_RANK_PRINTS(1, "setting alive");
 			next_step_chunk[j] = CELL_ALIVE;
 		} else if (alive_neighbors == 2) {
+			if (j == DEBUG_CELL) ONE_RANK_PRINTS(1, "was " << uint(rank_chunk[j]));
 			next_step_chunk[j] = rank_chunk[j];
 		} else {
+			if (j == DEBUG_CELL) ONE_RANK_PRINTS(1, "setting dead");
 			next_step_chunk[j] = CELL_DEAD;
 		}
 	}
