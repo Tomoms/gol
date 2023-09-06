@@ -8,6 +8,7 @@
 #include <PgmUtils.hpp>
 #include <GameOfLife.hpp>
 #include <mpi.h>
+#include <omp.h>
 
 #ifdef DEBUG
 #define ALL_RANKS_PRINT(x) \
@@ -44,6 +45,7 @@
 	world.recv(next_rank, FIRST_ROW_OF_SENDING_RANK, rank_chunk.data() + (rank_rows + 1) * grid_size, grid_size);
 
 namespace mpi = boost::mpi;
+namespace mt  = mpi::threading;
 
 int prev_rank, next_rank;
 ulong grid_size;
@@ -125,7 +127,7 @@ inline char count_alive_neighbors(PGM_HOLDER& rank_chunk, ulong j)
 		IS_TOP_NEIGHBOR_ALIVE(j) + IS_TOP_RIGHT_NEIGHBOR_ALIVE(j);
 }
 
-PGM_HOLDER evolve_static(PGM_HOLDER& rank_chunk, mpi::communicator world)
+PGM_HOLDER evolve_static(PGM_HOLDER& rank_chunk, mpi::communicator world, int i)
 {
 	const ulong rank_rows = (rank_chunk.size() / grid_size) - 2; // minus 2 halo rows
 	PGM_HOLDER next_step_chunk((rank_rows + 2) * grid_size);
@@ -140,15 +142,25 @@ PGM_HOLDER evolve_static(PGM_HOLDER& rank_chunk, mpi::communicator world)
 		SEND_FIRST_ROW;
 		SEND_LAST_ROW;
 	}
-	for (auto j = grid_size; j < (rank_rows + 1) * grid_size ; j++) {
-		char alive_neighbors = count_alive_neighbors(rank_chunk, j);
-		if (alive_neighbors == 3) {
-			next_step_chunk[j] = CELL_ALIVE;
-		} else if (alive_neighbors == 2) {
-			next_step_chunk[j] = rank_chunk[j];
-		} else {
-			next_step_chunk[j] = CELL_DEAD;
+
+	int rank = world.rank();
+	for (auto startpos = grid_size; startpos < rank_chunk.size() - grid_size; startpos += grid_size) {
+		#pragma omp task shared(rank_chunk, next_step_chunk, grid_size)
+		{
+			if (i==14)
+				std::cout << "rank " << rank << " starting at " << startpos << ", executed by " << omp_get_thread_num() << std::endl;
+			for (auto j = startpos; j < startpos + grid_size; j++) {
+				char alive_neighbors = count_alive_neighbors(rank_chunk, j);
+				if (alive_neighbors == 3) {
+					next_step_chunk[j] = CELL_ALIVE;
+				} else if (alive_neighbors == 2) {
+					next_step_chunk[j] = rank_chunk[j];
+				} else {
+					next_step_chunk[j] = CELL_DEAD;
+				}
+			}
 		}
+
 	}
 	return next_step_chunk;
 }
@@ -163,7 +175,7 @@ inline void update_cell_ordered(PGM_HOLDER& rank_chunk, ulong j)
 	}
 }
 
-PGM_HOLDER evolve_ordered(PGM_HOLDER& rank_chunk, mpi::communicator world)
+PGM_HOLDER evolve_ordered(PGM_HOLDER& rank_chunk, mpi::communicator world, int i)
 {
 	const ulong rank_rows = (rank_chunk.size() / grid_size) - 2;
 	if (world.rank() == 0) {
@@ -206,7 +218,10 @@ void save_snapshot(PGM_HOLDER& rank_chunk, int i, std::streampos rank_file_offse
 
 int main(int argc, char **argv)
 {
-	mpi::environment env(argc, argv);
+	mpi::environment env(argc, argv, mt::funneled);
+	if (env.thread_level() < mt::funneled) {
+		env.abort(-1);
+	}
 	mpi::communicator world;
 	int ret = EXIT_SUCCESS;
 
@@ -275,7 +290,7 @@ int main(int argc, char **argv)
 		const auto snapshotting_period = program.get<unsigned int>("-s");
 		const auto evolution_type = program.get<unsigned char>("-e");
 
-		PGM_HOLDER (*evolver)(PGM_HOLDER&, mpi::communicator);
+		PGM_HOLDER (*evolver)(PGM_HOLDER&, mpi::communicator, int);
 		if (evolution_type == 1) {
 			evolver = evolve_static;
 		} else if (evolution_type == 0) {
@@ -286,8 +301,12 @@ int main(int argc, char **argv)
 			return ret;
 		}
 
+#pragma omp parallel
+{
+#pragma omp master
+	{
 		for (uint i = 1; i <= simulation_steps; i++) {
-			rank_chunk = evolver(rank_chunk, world);
+			rank_chunk = evolver(rank_chunk, world, i);
 			if (snapshotting_period) {
 				if (i % snapshotting_period == 0) {
 					save_snapshot(rank_chunk, i, rank_file_offset_streampos, world);
@@ -298,11 +317,15 @@ int main(int argc, char **argv)
 				}
 			}
 		}
+	}
+}
 
 	} else {
 		ONE_RANK_PRINTS(0, "invalid arguments, quitting.");
 		ret = EXIT_FAILURE;
 	}
+
+	std::cout << "we're here" << std::endl;
 
 	return ret;
 }
