@@ -175,15 +175,12 @@ std::pair<ulong, ulong> compute_rank_chunk_bounds(mpi::communicator world)
 	return { rank_rows, rank_offset };
 }
 
-#define DEBUG_CELL 22
 inline char count_alive_neighbors(PGM_HOLDER& rank_chunk, ulong j)
 {
 	char result = is_bottom_left_neighbor_alive(rank_chunk, j) + (rank_chunk[j + grid_size] == CELL_ALIVE) +
 		is_bottom_right_neighbor_alive(rank_chunk, j) + is_left_neighbor_alive(rank_chunk, j) +
 		is_right_neighbor_alive(rank_chunk, j) + is_top_left_neighbor_alive(rank_chunk, j) +
 		(rank_chunk[j - grid_size] == CELL_ALIVE) + is_top_right_neighbor_alive(rank_chunk, j);
-	if (j == DEBUG_CELL)
-		std::cout << "count_alive_neighbors returning " << uint(result) << std::endl;
 	return result;
 }
 
@@ -205,13 +202,10 @@ PGM_HOLDER evolve_static(PGM_HOLDER& rank_chunk, mpi::communicator world)
 	for (auto j = grid_size; j < (rank_rows + 1) * grid_size ; j++) {
 		char alive_neighbors = count_alive_neighbors(rank_chunk, j);
 		if (alive_neighbors == 3) {
-			if (j == DEBUG_CELL) ONE_RANK_PRINTS(1, "setting alive");
 			next_step_chunk[j] = CELL_ALIVE;
 		} else if (alive_neighbors == 2) {
-			if (j == DEBUG_CELL) ONE_RANK_PRINTS(1, "was " << uint(rank_chunk[j]));
 			next_step_chunk[j] = rank_chunk[j];
 		} else {
-			if (j == DEBUG_CELL) ONE_RANK_PRINTS(1, "setting dead");
 			next_step_chunk[j] = CELL_DEAD;
 		}
 	}
@@ -291,7 +285,6 @@ int main(int argc, char **argv)
 	if (program["-i"] == true && program["-r"] == false) {
 		grid_size = program.get<unsigned long>("-k");
 		auto [rank_rows, rank_offset] = compute_rank_chunk_bounds(world);
-		ALL_RANKS_PRINT("works on " << rank_rows * grid_size << " elements");
 
 		PGM_HOLDER rank_random_chunk = PgmUtils::generate_random_chunk(rank_rows * grid_size);
 
@@ -305,7 +298,6 @@ int main(int argc, char **argv)
 		world.barrier();
 		auto rank_file_offset = rank_offset + file_size;
 		std::streampos rank_file_offset_streampos = static_cast<std::streampos>(rank_file_offset);
-		ALL_RANKS_PRINT("offset " << rank_file_offset_streampos);
 		PgmUtils::write_chunk_to_file(filename, rank_random_chunk, rank_file_offset_streampos, 0, static_cast<MPI_Comm>(world));
 	} else if (program["-i"] == false && program["-r"] == true) {
 		uint header_length;
@@ -323,14 +315,10 @@ int main(int argc, char **argv)
 		broadcast(world, grid_size, 0);
 		broadcast(world, header_length, 0);
 
-		ALL_RANKS_PRINT("detected size of " << grid_size);
-		ALL_RANKS_PRINT("header length: " << header_length);
-
 		auto [rank_rows, rank_offset] = compute_rank_chunk_bounds(world);
 		ALL_RANKS_PRINT("will work on " << rank_rows << " rows, i.e. " << rank_rows * grid_size << " cells");
 		auto rank_file_offset = rank_offset + header_length;
 		std::streampos rank_file_offset_streampos = static_cast<std::streampos>(rank_file_offset);
-		ALL_RANKS_PRINT("offset " << rank_file_offset_streampos);
 		PGM_HOLDER rank_chunk = PgmUtils::read_chunk_from_file(filename, rank_rows * grid_size, rank_file_offset_streampos, grid_size, static_cast<MPI_Comm>(world));
 
 		prev_rank = world.rank() - 1 >= 0 ? world.rank() - 1 : world.size() - 1;
