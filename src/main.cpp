@@ -199,6 +199,7 @@ PGM_HOLDER evolve_static(PGM_HOLDER& rank_chunk, mpi::communicator world)
 		SEND_FIRST_ROW;
 		SEND_LAST_ROW;
 	}
+#pragma omp parallel for
 	for (auto j = grid_size; j < (rank_rows + 1) * grid_size ; j++) {
 		char alive_neighbors = count_alive_neighbors(rank_chunk, j);
 		if (alive_neighbors == 3) {
