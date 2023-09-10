@@ -8,6 +8,7 @@
 #include <PgmUtils.hpp>
 #include <GameOfLife.hpp>
 #include <mpi.h>
+#include <omp.h>
 
 #ifdef DEBUG
 #define ALL_RANKS_PRINT(x) \
@@ -199,15 +200,33 @@ PGM_HOLDER evolve_static(PGM_HOLDER& rank_chunk, mpi::communicator world)
 		SEND_FIRST_ROW;
 		SEND_LAST_ROW;
 	}
-#pragma omp parallel for
-	for (auto j = grid_size; j < (rank_rows + 1) * grid_size ; j++) {
-		char alive_neighbors = count_alive_neighbors(rank_chunk, j);
+	const auto start = grid_size, end = (rank_rows + 1) * grid_size;
+	const auto nthreads = omp_get_num_threads();
+	const auto elements = end - start;
+	const ulong elements_per_thread = elements / nthreads;
+#pragma omp taskloop shared(rank_chunk, next_step_chunk) grainsize(1)
+	for (auto j = start; j < nthreads * elements_per_thread; j += elements_per_thread) {
+		for (auto i = j; i < j + elements_per_thread; i++) {
+			char alive_neighbors = count_alive_neighbors(rank_chunk, i);
+			if ((i + 8) < rank_chunk.size())
+				volatile char alive_neighbors_later = count_alive_neighbors(rank_chunk, i + 8);
+			if (alive_neighbors == 3) {
+				next_step_chunk[i] = CELL_ALIVE;
+			} else if (alive_neighbors == 2) {
+				next_step_chunk[i] = rank_chunk[i];
+			} else {
+				next_step_chunk[i] = CELL_DEAD;
+			}
+		}
+	}
+	for (auto i = nthreads * elements_per_thread; i < rank_chunk.size(); i++) {
+		char alive_neighbors = count_alive_neighbors(rank_chunk, i);
 		if (alive_neighbors == 3) {
-			next_step_chunk[j] = CELL_ALIVE;
+			next_step_chunk[i] = CELL_ALIVE;
 		} else if (alive_neighbors == 2) {
-			next_step_chunk[j] = rank_chunk[j];
+			next_step_chunk[i] = rank_chunk[i];
 		} else {
-			next_step_chunk[j] = CELL_DEAD;
+			next_step_chunk[i] = CELL_DEAD;
 		}
 	}
 	return next_step_chunk;
@@ -340,6 +359,10 @@ int main(int argc, char **argv)
 			return ret;
 		}
 
+#pragma omp parallel
+{
+#pragma omp master
+{
 		for (uint i = 1; i <= simulation_steps; i++) {
 			rank_chunk = evolver(rank_chunk, world);
 			if (snapshotting_period) {
@@ -352,7 +375,8 @@ int main(int argc, char **argv)
 				}
 			}
 		}
-
+}
+}
 	} else {
 		ONE_RANK_PRINTS(0, "invalid arguments, quitting.");
 		ret = EXIT_FAILURE;
