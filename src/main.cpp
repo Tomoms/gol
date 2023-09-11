@@ -31,9 +31,9 @@
 	world.send(next_rank, LAST_ROW_OF_SENDING_RANK, rank_chunk.data() + rank_rows * grid_size, grid_size);
 #define SEND_FIRST_ROW \
 	world.send(prev_rank, FIRST_ROW_OF_SENDING_RANK, rank_chunk.data() + grid_size, grid_size);
-#define RECEIVE_LAST_ROW \
+#define RECEIVE_TOP_HALO \
 	world.recv(prev_rank, LAST_ROW_OF_SENDING_RANK, rank_chunk.data(), grid_size);
-#define RECEIVE_FIRST_ROW \
+#define RECEIVE_BOTTOM_HALO \
 	world.recv(next_rank, FIRST_ROW_OF_SENDING_RANK, rank_chunk.data() + (rank_rows + 1) * grid_size, grid_size);
 
 namespace mpi = boost::mpi;
@@ -192,11 +192,11 @@ PGM_HOLDER evolve_static(PGM_HOLDER& rank_chunk, mpi::communicator world)
 	if (world.rank()) {
 		SEND_FIRST_ROW;
 		SEND_LAST_ROW;
-		RECEIVE_LAST_ROW;
-		RECEIVE_FIRST_ROW;
+		RECEIVE_TOP_HALO;
+		RECEIVE_BOTTOM_HALO;
 	} else {
-		RECEIVE_LAST_ROW;
-		RECEIVE_FIRST_ROW;
+		RECEIVE_TOP_HALO;
+		RECEIVE_BOTTOM_HALO;
 		SEND_FIRST_ROW;
 		SEND_LAST_ROW;
 	}
@@ -246,8 +246,8 @@ PGM_HOLDER evolve_ordered(PGM_HOLDER& rank_chunk, mpi::communicator world)
 {
 	const ulong rank_rows = (rank_chunk.size() / grid_size) - 2;
 	if (world.rank() == 0) {
-		RECEIVE_LAST_ROW;
-		RECEIVE_FIRST_ROW;
+		RECEIVE_TOP_HALO;
+		RECEIVE_BOTTOM_HALO;
 		for (auto j = grid_size; j < (rank_rows + 1) * grid_size ; j++) {
 			update_cell_ordered(rank_chunk, j);
 		}
@@ -256,15 +256,15 @@ PGM_HOLDER evolve_ordered(PGM_HOLDER& rank_chunk, mpi::communicator world)
 	} else if (world.rank() == world.size() - 1) {
 		SEND_LAST_ROW;
 		SEND_FIRST_ROW;
-		RECEIVE_FIRST_ROW;
-		RECEIVE_LAST_ROW;
+		RECEIVE_BOTTOM_HALO;
+		RECEIVE_TOP_HALO;
 		for (auto j = grid_size; j < (rank_rows + 1) * grid_size ; j++) {
 			update_cell_ordered(rank_chunk, j);
 		}
 	} else {
 		SEND_FIRST_ROW;
-		RECEIVE_FIRST_ROW;
-		RECEIVE_LAST_ROW;
+		RECEIVE_BOTTOM_HALO;
+		RECEIVE_TOP_HALO;
 		for (auto j = grid_size; j < (rank_rows + 1) * grid_size ; j++) {
 			update_cell_ordered(rank_chunk, j);
 		}
