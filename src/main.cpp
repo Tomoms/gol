@@ -41,7 +41,7 @@ namespace mpi = boost::mpi;
 int prev_rank, next_rank;
 ulong grid_size;
 
-inline bool is_top_left_neighbor_alive(PGM_HOLDER& rank_chunk, ulong index)
+inline __attribute__((always_inline)) bool is_top_left_neighbor_alive(PGM_HOLDER& rank_chunk, ulong index)
 {
 	bool alive = 0;
 	if (index % grid_size == 0) { // left edge of the matrix
@@ -52,7 +52,7 @@ inline bool is_top_left_neighbor_alive(PGM_HOLDER& rank_chunk, ulong index)
 	return alive;
 }
 
-inline bool is_top_right_neighbor_alive(PGM_HOLDER& rank_chunk, ulong index)
+inline __attribute__((always_inline)) bool is_top_right_neighbor_alive(PGM_HOLDER& rank_chunk, ulong index)
 {
 	bool alive = 0;
 	if ((index + 1) % grid_size == 0) { // right edge of the matrix
@@ -63,7 +63,7 @@ inline bool is_top_right_neighbor_alive(PGM_HOLDER& rank_chunk, ulong index)
 	return alive;
 }
 
-inline bool is_left_neighbor_alive(PGM_HOLDER& rank_chunk, ulong index)
+inline __attribute__((always_inline)) bool is_left_neighbor_alive(PGM_HOLDER& rank_chunk, ulong index)
 {
 	bool alive = 0;
 	if (index % grid_size == 0) { // left edge of the matrix
@@ -74,7 +74,7 @@ inline bool is_left_neighbor_alive(PGM_HOLDER& rank_chunk, ulong index)
 	return alive;
 }
 
-inline bool is_right_neighbor_alive(PGM_HOLDER& rank_chunk, ulong index)
+inline __attribute__((always_inline)) bool is_right_neighbor_alive(PGM_HOLDER& rank_chunk, ulong index)
 {
 	bool alive = 0;
 	if ((index + 1) % grid_size == 0) { // right edge of the matrix
@@ -85,7 +85,7 @@ inline bool is_right_neighbor_alive(PGM_HOLDER& rank_chunk, ulong index)
 	return alive;
 }
 
-inline bool is_bottom_left_neighbor_alive(PGM_HOLDER& rank_chunk, ulong index)
+inline __attribute__((always_inline)) bool is_bottom_left_neighbor_alive(PGM_HOLDER& rank_chunk, ulong index)
 {
 	bool alive = 0;
 	if (index % grid_size == 0) { // left edge of the matrix
@@ -96,7 +96,7 @@ inline bool is_bottom_left_neighbor_alive(PGM_HOLDER& rank_chunk, ulong index)
 	return alive;
 }
 
-inline bool is_bottom_right_neighbor_alive(PGM_HOLDER& rank_chunk, ulong index)
+inline __attribute__((always_inline)) bool is_bottom_right_neighbor_alive(PGM_HOLDER& rank_chunk, ulong index)
 {
 	bool alive = 0;
 	if ((index + 1) % grid_size == 0) { // right edge of the matrix
@@ -179,7 +179,7 @@ std::pair<ulong, ulong> compute_rank_chunk_bounds(mpi::communicator world)
 	return { rank_rows, rank_offset };
 }
 
-inline char count_alive_neighbors(PGM_HOLDER& rank_chunk, ulong j)
+inline __attribute__((always_inline)) char count_alive_neighbors(PGM_HOLDER& rank_chunk, ulong j)
 {
 	char result = is_bottom_left_neighbor_alive(rank_chunk, j) + (rank_chunk[j + grid_size] == CELL_ALIVE) +
 		is_bottom_right_neighbor_alive(rank_chunk, j) + is_left_neighbor_alive(rank_chunk, j) +
@@ -235,7 +235,7 @@ PGM_HOLDER evolve_static(PGM_HOLDER& rank_chunk, mpi::communicator world)
 	return next_step_chunk;
 }
 
-inline void update_cell_ordered(PGM_HOLDER& rank_chunk, ulong j)
+inline __attribute__((always_inline)) void update_cell_ordered(PGM_HOLDER& rank_chunk, ulong j)
 {
 	char alive_neighbors = count_alive_neighbors(rank_chunk, j);
 	if (alive_neighbors == 3) {
