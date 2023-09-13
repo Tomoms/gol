@@ -163,6 +163,9 @@ std::string compute_checkpoint_filename(unsigned long step)
 
 std::pair<ulong, ulong> compute_rank_chunk_bounds(mpi::communicator world)
 {
+	if (world.size() == 1) {
+		return { grid_size, 0 };
+	}
 	const auto base_rows_per_rank = grid_size / world.size();
 	auto rank_rows = base_rows_per_rank;
 	const auto leftovers = grid_size % world.size();
@@ -189,16 +192,18 @@ PGM_HOLDER evolve_static(PGM_HOLDER& rank_chunk, mpi::communicator world)
 {
 	const ulong rank_rows = (rank_chunk.size() / grid_size) - 2; // minus 2 halo rows
 	PGM_HOLDER next_step_chunk(rank_chunk.size());
-	if (world.rank()) {
-		SEND_FIRST_ROW;
-		SEND_LAST_ROW;
-		RECEIVE_TOP_HALO;
-		RECEIVE_BOTTOM_HALO;
-	} else {
-		RECEIVE_TOP_HALO;
-		RECEIVE_BOTTOM_HALO;
-		SEND_FIRST_ROW;
-		SEND_LAST_ROW;
+	if (world.size() != 1) {
+		if (world.rank()) {
+			SEND_FIRST_ROW;
+			SEND_LAST_ROW;
+			RECEIVE_TOP_HALO;
+			RECEIVE_BOTTOM_HALO;
+		} else {
+			RECEIVE_TOP_HALO;
+			RECEIVE_BOTTOM_HALO;
+			SEND_FIRST_ROW;
+			SEND_LAST_ROW;
+		}
 	}
 	const auto start = grid_size, end = (rank_rows + 1) * grid_size;
 	const auto nthreads = omp_get_num_threads();
@@ -243,30 +248,36 @@ inline void update_cell_ordered(PGM_HOLDER& rank_chunk, ulong j)
 PGM_HOLDER evolve_ordered(PGM_HOLDER& rank_chunk, mpi::communicator world)
 {
 	const ulong rank_rows = (rank_chunk.size() / grid_size) - 2;
-	if (world.rank() == 0) {
-		RECEIVE_TOP_HALO;
-		RECEIVE_BOTTOM_HALO;
-		for (auto j = grid_size; j < (rank_rows + 1) * grid_size ; j++) {
-			update_cell_ordered(rank_chunk, j);
-		}
-		SEND_FIRST_ROW;
-		SEND_LAST_ROW;
-	} else if (world.rank() == world.size() - 1) {
-		SEND_LAST_ROW;
-		SEND_FIRST_ROW;
-		RECEIVE_BOTTOM_HALO;
-		RECEIVE_TOP_HALO;
-		for (auto j = grid_size; j < (rank_rows + 1) * grid_size ; j++) {
-			update_cell_ordered(rank_chunk, j);
+	if (world.size() != 1) {
+		if (world.rank() == 0) {
+			RECEIVE_TOP_HALO;
+			RECEIVE_BOTTOM_HALO;
+			for (auto j = grid_size; j < (rank_rows + 1) * grid_size ; j++) {
+				update_cell_ordered(rank_chunk, j);
+			}
+			SEND_FIRST_ROW;
+			SEND_LAST_ROW;
+		} else if (world.rank() == world.size() - 1) {
+			SEND_LAST_ROW;
+			SEND_FIRST_ROW;
+			RECEIVE_BOTTOM_HALO;
+			RECEIVE_TOP_HALO;
+			for (auto j = grid_size; j < (rank_rows + 1) * grid_size ; j++) {
+				update_cell_ordered(rank_chunk, j);
+			}
+		} else {
+			SEND_FIRST_ROW;
+			RECEIVE_BOTTOM_HALO;
+			RECEIVE_TOP_HALO;
+			for (auto j = grid_size; j < (rank_rows + 1) * grid_size ; j++) {
+				update_cell_ordered(rank_chunk, j);
+			}
+			SEND_LAST_ROW;
 		}
 	} else {
-		SEND_FIRST_ROW;
-		RECEIVE_BOTTOM_HALO;
-		RECEIVE_TOP_HALO;
 		for (auto j = grid_size; j < (rank_rows + 1) * grid_size ; j++) {
 			update_cell_ordered(rank_chunk, j);
 		}
-		SEND_LAST_ROW;
 	}
 	return rank_chunk;
 }
@@ -299,6 +310,7 @@ int main(int argc, char **argv)
 	}
 
 	const auto filename = program.get<std::string>("-f");
+	const auto ranks = world.size();
 
 	if (program["-i"] == true && program["-r"] == false) {
 		grid_size = program.get<unsigned long>("-k");
@@ -330,8 +342,11 @@ int main(int argc, char **argv)
 			std::string magic;
 			iss >> magic >> grid_size;
 		}
-		broadcast(world, grid_size, 0);
-		broadcast(world, header_length, 0);
+
+		if (ranks != 1) {
+			broadcast(world, grid_size, 0);
+			broadcast(world, header_length, 0);
+		}
 
 		auto [rank_rows, rank_offset] = compute_rank_chunk_bounds(world);
 		ALL_RANKS_PRINT("will work on " << rank_rows << " rows, i.e. " << rank_rows * grid_size << " cells");
@@ -339,8 +354,10 @@ int main(int argc, char **argv)
 		std::streampos rank_file_offset_streampos = static_cast<std::streampos>(rank_file_offset);
 		PGM_HOLDER rank_chunk = PgmUtils::read_chunk_from_file(filename, rank_rows * grid_size, rank_file_offset_streampos, grid_size, static_cast<MPI_Comm>(world));
 
-		prev_rank = world.rank() - 1 >= 0 ? world.rank() - 1 : world.size() - 1;
-		next_rank = world.rank() + 1 >= world.size() ? 0 : world.rank() + 1;
+		if (ranks != 1) {
+			prev_rank = world.rank() - 1 >= 0 ? world.rank() - 1 : world.size() - 1;
+			next_rank = world.rank() + 1 >= world.size() ? 0 : world.rank() + 1;
+		}
 
 		const auto simulation_steps = program.get<unsigned int>("-n");
 		const auto snapshotting_period = program.get<unsigned int>("-s");
