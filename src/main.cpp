@@ -188,7 +188,7 @@ inline char count_alive_neighbors(PGM_HOLDER& rank_chunk, ulong j)
 PGM_HOLDER evolve_static(PGM_HOLDER& rank_chunk, mpi::communicator world)
 {
 	const ulong rank_rows = (rank_chunk.size() / grid_size) - 2; // minus 2 halo rows
-	PGM_HOLDER next_step_chunk((rank_rows + 2) * grid_size);
+	PGM_HOLDER next_step_chunk(rank_chunk.size());
 	if (world.rank()) {
 		SEND_FIRST_ROW;
 		SEND_LAST_ROW;
@@ -208,8 +208,6 @@ PGM_HOLDER evolve_static(PGM_HOLDER& rank_chunk, mpi::communicator world)
 	for (auto j = start; j < nthreads * elements_per_thread; j += elements_per_thread) {
 		for (auto i = j; i < j + elements_per_thread; i++) {
 			char alive_neighbors = count_alive_neighbors(rank_chunk, i);
-			if ((i + 8) < rank_chunk.size())
-				volatile char alive_neighbors_later = count_alive_neighbors(rank_chunk, i + 8);
 			if (alive_neighbors == 3) {
 				next_step_chunk[i] = CELL_ALIVE;
 			} else if (alive_neighbors == 2) {
@@ -219,7 +217,7 @@ PGM_HOLDER evolve_static(PGM_HOLDER& rank_chunk, mpi::communicator world)
 			}
 		}
 	}
-	for (auto i = nthreads * elements_per_thread; i < rank_chunk.size(); i++) {
+	for (auto i = nthreads * elements_per_thread; i < end; i++) {
 		char alive_neighbors = count_alive_neighbors(rank_chunk, i);
 		if (alive_neighbors == 3) {
 			next_step_chunk[i] = CELL_ALIVE;
