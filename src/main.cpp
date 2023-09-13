@@ -27,9 +27,9 @@
 #define IS_CELL_ALIVE(index) rank_chunk[index] == CELL_ALIVE
 
 #define SEND_LAST_ROW \
-	world.send(next_rank, LAST_ROW_OF_SENDING_RANK, rank_chunk.data() + rank_rows * grid_size, grid_size);
+	world.isend(next_rank, LAST_ROW_OF_SENDING_RANK, rank_chunk.data() + rank_rows * grid_size, grid_size);
 #define SEND_FIRST_ROW \
-	world.send(prev_rank, FIRST_ROW_OF_SENDING_RANK, rank_chunk.data() + grid_size, grid_size);
+	world.isend(prev_rank, FIRST_ROW_OF_SENDING_RANK, rank_chunk.data() + grid_size, grid_size);
 #define RECEIVE_TOP_HALO \
 	world.recv(prev_rank, LAST_ROW_OF_SENDING_RANK, rank_chunk.data(), grid_size);
 #define RECEIVE_BOTTOM_HALO \
