@@ -6,7 +6,6 @@
 #include <argparse/argparse.hpp>
 #include <boost/mpi.hpp>
 #include <PgmUtils.hpp>
-#include <GameOfLife.hpp>
 #include <mpi.h>
 #include <omp.h>
 

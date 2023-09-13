@@ -6,7 +6,6 @@
 #include <random>
 #include <string>
 #include <vector>
-#include <Cell.hpp>
 #include <mpi.h>
 
 #define PGM_MAX_VALUE	255
