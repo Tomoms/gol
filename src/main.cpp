@@ -5,6 +5,7 @@
 #include <string>
 #include <argparse/argparse.hpp>
 #include <boost/mpi.hpp>
+#include <boost/mpi/timer.hpp>
 #include <PgmUtils.hpp>
 #include <mpi.h>
 #include <omp.h>
@@ -388,14 +389,6 @@ int main(int argc, char **argv)
 		if (ranks != 1) {
 			broadcast(world, grid_size, 0);
 			broadcast(world, header_length, 0);
-		}
-
-		auto [rank_rows, rank_offset] = compute_rank_chunk_bounds(world);
-		auto rank_file_offset = rank_offset + header_length;
-		std::streampos rank_file_offset_streampos = static_cast<std::streampos>(rank_file_offset);
-		PGM_HOLDER rank_chunk = PgmUtils::read_chunk_from_file(filename, rank_rows * grid_size, rank_file_offset_streampos, grid_size, static_cast<MPI_Comm>(world));
-
-		if (ranks != 1) {
 			prev_rank = world.rank() - 1 >= 0 ? world.rank() - 1 : world.size() - 1;
 			next_rank = world.rank() + 1 >= world.size() ? 0 : world.rank() + 1;
 		}
@@ -415,6 +408,12 @@ int main(int argc, char **argv)
 			return ret;
 		}
 
+		auto [rank_rows, rank_offset] = compute_rank_chunk_bounds(world);
+		auto rank_file_offset = rank_offset + header_length;
+		std::streampos rank_file_offset_streampos = static_cast<std::streampos>(rank_file_offset);
+		mpi::timer timer;
+		PGM_HOLDER rank_chunk = PgmUtils::read_chunk_from_file(filename, rank_rows * grid_size, rank_file_offset_streampos, grid_size, static_cast<MPI_Comm>(world));
+
 #pragma omp parallel
 {
 #pragma omp master
@@ -433,6 +432,8 @@ int main(int argc, char **argv)
 		}
 }
 }
+		double elapsed = timer.elapsed();
+		ALL_RANKS_PRINT("elapsed: " << elapsed);
 	} else {
 		ONE_RANK_PRINTS(0, "invalid arguments, quitting.");
 		ret = EXIT_FAILURE;
