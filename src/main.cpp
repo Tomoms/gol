@@ -391,7 +391,6 @@ int main(int argc, char **argv)
 		}
 
 		auto [rank_rows, rank_offset] = compute_rank_chunk_bounds(world);
-		ALL_RANKS_PRINT("will work on " << rank_rows << " rows, i.e. " << rank_rows * grid_size << " cells");
 		auto rank_file_offset = rank_offset + header_length;
 		std::streampos rank_file_offset_streampos = static_cast<std::streampos>(rank_file_offset);
 		PGM_HOLDER rank_chunk = PgmUtils::read_chunk_from_file(filename, rank_rows * grid_size, rank_file_offset_streampos, grid_size, static_cast<MPI_Comm>(world));
