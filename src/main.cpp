@@ -36,6 +36,7 @@
 	world.recv(next_rank, FIRST_ROW_OF_SENDING_RANK, rank_chunk.data() + (rank_rows + 1) * grid_size, grid_size);
 
 namespace mpi = boost::mpi;
+namespace mt  = mpi::threading;
 
 int prev_rank, next_rank;
 ulong grid_size;
@@ -332,7 +333,10 @@ void save_snapshot(PGM_HOLDER& rank_chunk, int i, std::streampos rank_file_offse
 
 int main(int argc, char **argv)
 {
-	mpi::environment env(argc, argv);
+	mpi::environment env(argc, argv, mt::funneled);
+	if (env.thread_level() < mt::funneled) {
+		env.abort(-1);
+	}
 	mpi::communicator world;
 	int ret = EXIT_SUCCESS;
 
