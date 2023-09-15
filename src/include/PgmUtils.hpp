@@ -7,10 +7,10 @@
 #include <string>
 #include <vector>
 #include <mpi.h>
-#include <boost/align/aligned_allocator.hpp>
+#include <mimalloc.h>
 
 #define PGM_MAX_VALUE	255
-#define PGM_HOLDER		std::vector<unsigned char, boost::alignment::aligned_allocator<unsigned char, 64>>
+#define PGM_HOLDER		std::vector<unsigned char, mi_stl_allocator<unsigned char>>
 #define SIZE_HOLDER		std::pair<unsigned long, unsigned long> // width (number of columns) and height (number of rows)
 
 namespace PgmUtils {

@@ -9,6 +9,8 @@
 #include <PgmUtils.hpp>
 #include <mpi.h>
 #include <omp.h>
+#include <mimalloc.h>
+#include <mimalloc-new-delete.h>
 
 #ifdef DEBUG
 #define ALL_RANKS_PRINT(x) \
