@@ -124,12 +124,10 @@ void setup_parser(argparse::ArgumentParser& program)
 
 	program.add_argument("-k")
 		.scan<'u', unsigned long>()
-		//.default_value(std::string{"15"})
 		.help("grid size");
 
 	program.add_argument("-e")
 		.scan<'u', unsigned char>()
-		//.default_value(std::string{"1"})
 		.help("evolution type (0 = ordered, 1 = static)");
 
 	program.add_argument("-f")
@@ -138,12 +136,10 @@ void setup_parser(argparse::ArgumentParser& program)
 
 	program.add_argument("-n")
 		.scan<'u', unsigned int>()
-		//.default_value(15)
 		.help("simulation steps");
 
 	program.add_argument("-s")
 		.scan<'u', unsigned int>()
-		//.default_value(1)
 		.help("snapshotting period");
 }
 
