@@ -411,6 +411,7 @@ int main(int argc, char **argv)
 		auto [rank_rows, rank_offset] = compute_rank_chunk_bounds(world);
 		auto rank_file_offset = rank_offset + header_length;
 		std::streampos rank_file_offset_streampos = static_cast<std::streampos>(rank_file_offset);
+		uint nthreads;
 		mpi::timer timer;
 		PGM_HOLDER rank_chunk = PgmUtils::read_chunk_from_file(filename, rank_rows * grid_size, rank_file_offset_streampos, grid_size, static_cast<MPI_Comm>(world));
 
@@ -418,6 +419,7 @@ int main(int argc, char **argv)
 {
 #pragma omp master
 {
+		nthreads = omp_get_num_threads();
 		for (uint i = 1; i <= simulation_steps; i++) {
 			rank_chunk = evolver(rank_chunk, world);
 			if (snapshotting_period) {
@@ -433,7 +435,7 @@ int main(int argc, char **argv)
 }
 }
 		double elapsed = timer.elapsed();
-		ALL_RANKS_PRINT("elapsed: " << elapsed);
+		ALL_RANKS_PRINT(grid_size << "," << world.size() << "," << nthreads << "," << elapsed);
 	} else {
 		ONE_RANK_PRINTS(0, "invalid arguments, quitting.");
 		ret = EXIT_FAILURE;
