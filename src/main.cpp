@@ -391,7 +391,11 @@ int main(int argc, char **argv)
 }
 }
 		double elapsed = timer.elapsed();
-		ALL_RANKS_PRINT(grid_size << "," << world.size() << "," << nthreads << "," << elapsed);
+		double avg = mpi::all_reduce(world, elapsed, std::plus<double>());
+		avg = avg / world.size();
+		if (!world.rank()){
+			std::cout << grid_size << "," << world.size() << "," << nthreads << "," << avg << std::endl;
+		}
 	} else {
 		ONE_RANK_PRINTS(0, "invalid arguments, quitting.");
 		ret = EXIT_FAILURE;
