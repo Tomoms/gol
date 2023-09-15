@@ -189,10 +189,9 @@ inline __attribute__((always_inline)) char count_alive_neighbors(PGM_HOLDER& ran
 	return result;
 }
 
-PGM_HOLDER evolve_static(PGM_HOLDER& rank_chunk, mpi::communicator world)
+PGM_HOLDER evolve_static(PGM_HOLDER& rank_chunk, PGM_HOLDER& next_step_chunk, mpi::communicator world)
 {
 	const ulong rank_rows = (rank_chunk.size() / grid_size) - 2; // minus 2 halo rows
-	PGM_HOLDER next_step_chunk(rank_chunk.size());
 	if (world.size() != 1) {
 		if (world.rank()) {
 			SEND_FIRST_ROW;
@@ -245,7 +244,7 @@ inline __attribute__((always_inline)) void update_cell_ordered(PGM_HOLDER& rank_
 	rank_chunk[j] = (alive_neighbors == 3 || alive_neighbors == 2) ? CELL_ALIVE : CELL_DEAD;
 }
 
-PGM_HOLDER evolve_ordered(PGM_HOLDER& rank_chunk, mpi::communicator world)
+PGM_HOLDER evolve_ordered(PGM_HOLDER& rank_chunk, PGM_HOLDER& unused, mpi::communicator world)
 {
 	const ulong rank_rows = (rank_chunk.size() / grid_size) - 2;
 	if (world.size() != 1) {
@@ -357,7 +356,7 @@ int main(int argc, char **argv)
 		const auto snapshotting_period = program.get<unsigned int>("-s");
 		const auto evolution_type = program.get<unsigned char>("-e");
 
-		PGM_HOLDER (*evolver)(PGM_HOLDER&, mpi::communicator);
+		PGM_HOLDER (*evolver)(PGM_HOLDER&, PGM_HOLDER&, mpi::communicator);
 		if (evolution_type == 1) {
 			evolver = evolve_static;
 		} else if (evolution_type == 0) {
@@ -374,6 +373,7 @@ int main(int argc, char **argv)
 		uint nthreads;
 		mpi::timer timer;
 		PGM_HOLDER rank_chunk = PgmUtils::read_chunk_from_file(filename, rank_rows * grid_size, rank_file_offset_streampos, grid_size, static_cast<MPI_Comm>(world));
+		PGM_HOLDER next_step_chunk(rank_chunk.size());
 
 #pragma omp parallel
 {
@@ -381,7 +381,7 @@ int main(int argc, char **argv)
 {
 		nthreads = omp_get_num_threads();
 		for (uint i = 1; i <= simulation_steps; i++) {
-			rank_chunk = evolver(rank_chunk, world);
+			rank_chunk = evolver(rank_chunk, next_step_chunk, world);
 			if (snapshotting_period) {
 				if (i % snapshotting_period == 0) {
 					save_snapshot(rank_chunk, i, rank_file_offset_streampos, world);
