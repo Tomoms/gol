@@ -41,6 +41,8 @@ namespace mt  = mpi::threading;
 
 int prev_rank, next_rank;
 ulong grid_size;
+uint nthreads;
+
 
 inline __attribute__((always_inline)) bool is_top_left_neighbor_alive(PGM_HOLDER& rank_chunk, ulong index)
 {
@@ -206,7 +208,6 @@ PGM_HOLDER evolve_static(PGM_HOLDER& rank_chunk, PGM_HOLDER& next_step_chunk, mp
 		}
 	}
 	const auto start = grid_size, end = (rank_rows + 1) * grid_size;
-	const auto nthreads = omp_get_num_threads();
 	const auto elements = end - start;
 	const ulong elements_per_thread = elements / nthreads;
 #pragma omp taskloop shared(rank_chunk, next_step_chunk) grainsize(1)
@@ -370,7 +371,6 @@ int main(int argc, char **argv)
 		auto [rank_rows, rank_offset] = compute_rank_chunk_bounds(world);
 		auto rank_file_offset = rank_offset + header_length;
 		std::streampos rank_file_offset_streampos = static_cast<std::streampos>(rank_file_offset);
-		uint nthreads;
 		mpi::timer timer;
 		PGM_HOLDER rank_chunk = PgmUtils::read_chunk_from_file(filename, rank_rows * grid_size, rank_file_offset_streampos, grid_size, static_cast<MPI_Comm>(world));
 		PGM_HOLDER next_step_chunk(rank_chunk.size());
