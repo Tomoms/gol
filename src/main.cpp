@@ -25,7 +25,7 @@
 
 #define CELL_ALIVE	255
 #define CELL_DEAD	0
-#define IS_CELL_ALIVE(index) rank_chunk[index] == CELL_ALIVE
+#define IS_CELL_ALIVE(index) (rank_chunk[index] == CELL_ALIVE)
 
 #define SEND_LAST_ROW \
 	world.isend(next_rank, LAST_ROW_OF_SENDING_RANK, rank_chunk.data() + rank_rows * grid_size, grid_size);
@@ -43,35 +43,16 @@ int prev_rank, next_rank;
 ulong grid_size;
 uint nthreads;
 
-
-inline __attribute__((always_inline)) bool is_top_left_neighbor_alive(PGM_HOLDER& rank_chunk, ulong index)
+inline __attribute__((always_inline)) unsigned char check_left_side(PGM_HOLDER& rank_chunk, ulong index)
 {
-	return (index % grid_size == 0) ? IS_CELL_ALIVE(index - 1) : IS_CELL_ALIVE(index - grid_size - 1);
+	return (index % grid_size == 0) ? IS_CELL_ALIVE(index - 1) + IS_CELL_ALIVE(index + grid_size - 1) + IS_CELL_ALIVE(index - 1 + 2 * grid_size)
+		: IS_CELL_ALIVE(index - grid_size - 1) + IS_CELL_ALIVE(index - 1) + IS_CELL_ALIVE(index + grid_size - 1);
 }
 
-inline __attribute__((always_inline)) bool is_top_right_neighbor_alive(PGM_HOLDER& rank_chunk, ulong index)
+inline __attribute__((always_inline)) unsigned char check_right_side(PGM_HOLDER& rank_chunk, ulong index)
 {
-	return ((index + 1) % grid_size == 0) ? IS_CELL_ALIVE(index + 1 - 2 * grid_size) : IS_CELL_ALIVE(index - grid_size + 1);
-}
-
-inline __attribute__((always_inline)) bool is_left_neighbor_alive(PGM_HOLDER& rank_chunk, ulong index)
-{
-	return (index % grid_size == 0) ? IS_CELL_ALIVE(index + grid_size - 1) : IS_CELL_ALIVE(index - 1);
-}
-
-inline __attribute__((always_inline)) bool is_right_neighbor_alive(PGM_HOLDER& rank_chunk, ulong index)
-{
-	return ((index + 1) % grid_size == 0) ? IS_CELL_ALIVE(index - grid_size + 1) : IS_CELL_ALIVE(index + 1);
-}
-
-inline __attribute__((always_inline)) bool is_bottom_left_neighbor_alive(PGM_HOLDER& rank_chunk, ulong index)
-{
-	return (index % grid_size == 0) ? IS_CELL_ALIVE(index - 1 + 2 * grid_size) : IS_CELL_ALIVE(index + grid_size - 1);
-}
-
-inline __attribute__((always_inline)) bool is_bottom_right_neighbor_alive(PGM_HOLDER& rank_chunk, ulong index)
-{
-	return ((index + 1) % grid_size == 0) ? IS_CELL_ALIVE(index + 1) : IS_CELL_ALIVE(index + grid_size + 1);
+	return ((index + 1) % grid_size == 0) ? IS_CELL_ALIVE(index + 1 - 2 * grid_size) + IS_CELL_ALIVE(index - grid_size + 1) + IS_CELL_ALIVE(index + 1)
+		: IS_CELL_ALIVE(index - grid_size + 1) + IS_CELL_ALIVE(index + 1) + IS_CELL_ALIVE(index + grid_size + 1);
 }
 
 void setup_parser(argparse::ArgumentParser& program)
@@ -144,11 +125,7 @@ std::pair<ulong, ulong> compute_rank_chunk_bounds(mpi::communicator world)
 
 inline __attribute__((always_inline)) char count_alive_neighbors(PGM_HOLDER& rank_chunk, ulong j)
 {
-	char result = is_bottom_left_neighbor_alive(rank_chunk, j) + (rank_chunk[j + grid_size] == CELL_ALIVE) +
-		is_bottom_right_neighbor_alive(rank_chunk, j) + is_left_neighbor_alive(rank_chunk, j) +
-		is_right_neighbor_alive(rank_chunk, j) + is_top_left_neighbor_alive(rank_chunk, j) +
-		(rank_chunk[j - grid_size] == CELL_ALIVE) + is_top_right_neighbor_alive(rank_chunk, j);
-	return result;
+	return check_left_side(rank_chunk, j) + check_right_side(rank_chunk, j) + IS_CELL_ALIVE(j + grid_size) + IS_CELL_ALIVE(j - grid_size);
 }
 
 PGM_HOLDER evolve_static(PGM_HOLDER& rank_chunk, PGM_HOLDER& next_step_chunk, mpi::communicator world)
