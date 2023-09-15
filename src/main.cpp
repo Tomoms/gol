@@ -46,68 +46,32 @@ uint nthreads;
 
 inline __attribute__((always_inline)) bool is_top_left_neighbor_alive(PGM_HOLDER& rank_chunk, ulong index)
 {
-	bool alive = 0;
-	if (index % grid_size == 0) { // left edge of the matrix
-		alive = IS_CELL_ALIVE(index - 1);
-	} else {
-		alive = IS_CELL_ALIVE(index - grid_size - 1);
-	}
-	return alive;
+	return (index % grid_size == 0) ? IS_CELL_ALIVE(index - 1) : IS_CELL_ALIVE(index - grid_size - 1);
 }
 
 inline __attribute__((always_inline)) bool is_top_right_neighbor_alive(PGM_HOLDER& rank_chunk, ulong index)
 {
-	bool alive = 0;
-	if ((index + 1) % grid_size == 0) { // right edge of the matrix
-		alive = IS_CELL_ALIVE(index + 1 - 2 * grid_size);
-	} else {
-		alive = IS_CELL_ALIVE(index - grid_size + 1);
-	}
-	return alive;
+	return ((index + 1) % grid_size == 0) ? IS_CELL_ALIVE(index + 1 - 2 * grid_size) : IS_CELL_ALIVE(index - grid_size + 1);
 }
 
 inline __attribute__((always_inline)) bool is_left_neighbor_alive(PGM_HOLDER& rank_chunk, ulong index)
 {
-	bool alive = 0;
-	if (index % grid_size == 0) { // left edge of the matrix
-		alive = IS_CELL_ALIVE(index + grid_size - 1);
-	} else {
-		alive = IS_CELL_ALIVE(index - 1);
-	}
-	return alive;
+	return (index % grid_size == 0) ? IS_CELL_ALIVE(index + grid_size - 1) : IS_CELL_ALIVE(index - 1);
 }
 
 inline __attribute__((always_inline)) bool is_right_neighbor_alive(PGM_HOLDER& rank_chunk, ulong index)
 {
-	bool alive = 0;
-	if ((index + 1) % grid_size == 0) { // right edge of the matrix
-		alive = IS_CELL_ALIVE(index - grid_size + 1);
-	} else {
-		alive = IS_CELL_ALIVE(index + 1);
-	}
-	return alive;
+	return ((index + 1) % grid_size == 0) ? IS_CELL_ALIVE(index - grid_size + 1) : IS_CELL_ALIVE(index + 1);
 }
 
 inline __attribute__((always_inline)) bool is_bottom_left_neighbor_alive(PGM_HOLDER& rank_chunk, ulong index)
 {
-	bool alive = 0;
-	if (index % grid_size == 0) { // left edge of the matrix
-		alive = IS_CELL_ALIVE(index - 1 + 2 * grid_size);
-	} else {
-		alive = IS_CELL_ALIVE(index + grid_size - 1);
-	}
-	return alive;
+	return (index % grid_size == 0) ? IS_CELL_ALIVE(index - 1 + 2 * grid_size) : IS_CELL_ALIVE(index + grid_size - 1);
 }
 
 inline __attribute__((always_inline)) bool is_bottom_right_neighbor_alive(PGM_HOLDER& rank_chunk, ulong index)
 {
-	bool alive = 0;
-	if ((index + 1) % grid_size == 0) { // right edge of the matrix
-		alive = IS_CELL_ALIVE(index + 1);
-	} else {
-		alive = IS_CELL_ALIVE(index + grid_size + 1);
-	}
-	return alive;
+	return ((index + 1) % grid_size == 0) ? IS_CELL_ALIVE(index + 1) : IS_CELL_ALIVE(index + grid_size + 1);
 }
 
 void setup_parser(argparse::ArgumentParser& program)
