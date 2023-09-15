@@ -219,58 +219,22 @@ PGM_HOLDER evolve_static(PGM_HOLDER& rank_chunk, mpi::communicator world)
 			char alive_neighbors_1 = count_alive_neighbors(rank_chunk, next_1);
 			char alive_neighbors_2 = count_alive_neighbors(rank_chunk, next_2);
 			char alive_neighbors_3 = count_alive_neighbors(rank_chunk, next_3);
-			if (alive_neighbors == 3) {
-				next_step_chunk[i] = CELL_ALIVE;
-			} else if (alive_neighbors == 2) {
-				next_step_chunk[i] = rank_chunk[i];
-			} else {
-				next_step_chunk[i] = CELL_DEAD;
-			}
-			if (alive_neighbors_1 == 3) {
-				next_step_chunk[next_1] = CELL_ALIVE;
-			} else if (alive_neighbors_1 == 2) {
-				next_step_chunk[next_1] = rank_chunk[next_1];
-			} else {
-				next_step_chunk[next_1] = CELL_DEAD;
-			}
-			if (alive_neighbors_2 == 3) {
-				next_step_chunk[next_2] = CELL_ALIVE;
-			} else if (alive_neighbors_2 == 2) {
-				next_step_chunk[next_2] = rank_chunk[next_2];
-			} else {
-				next_step_chunk[next_2] = CELL_DEAD;
-			}
-			if (alive_neighbors_3 == 3) {
-				next_step_chunk[next_3] = CELL_ALIVE;
-			} else if (alive_neighbors_3 == 2) {
-				next_step_chunk[next_3] = rank_chunk[next_3];
-			} else {
-				next_step_chunk[next_3] = CELL_DEAD;
-			}
+			next_step_chunk[i] = (alive_neighbors == 3 || alive_neighbors == 2) ? CELL_ALIVE : CELL_DEAD;
+			next_step_chunk[next_1] = (alive_neighbors_1 == 3 || alive_neighbors_1 == 2) ? CELL_ALIVE : CELL_DEAD;
+			next_step_chunk[next_2] = (alive_neighbors_2 == 3 || alive_neighbors_2 == 2) ? CELL_ALIVE : CELL_DEAD;
+			next_step_chunk[next_3] = (alive_neighbors_3 == 3 || alive_neighbors_3 == 2) ? CELL_ALIVE : CELL_DEAD;
 		}
 		if (i != j + elements_per_thread) {
 			i = i - 4 + 1;
 			for (; i < j + elements_per_thread; i++) {
 				char alive_neighbors = count_alive_neighbors(rank_chunk, i);
-				if (alive_neighbors == 3) {
-					next_step_chunk[i] = CELL_ALIVE;
-				} else if (alive_neighbors == 2) {
-					next_step_chunk[i] = rank_chunk[i];
-				} else {
-					next_step_chunk[i] = CELL_DEAD;
-				}
+				next_step_chunk[i] = (alive_neighbors == 3 || alive_neighbors == 2) ? CELL_ALIVE : CELL_DEAD;
 			}
 		}
 	}
 	for (auto i = start + nthreads * elements_per_thread; i < end; i++) {
 		char alive_neighbors = count_alive_neighbors(rank_chunk, i);
-		if (alive_neighbors == 3) {
-			next_step_chunk[i] = CELL_ALIVE;
-		} else if (alive_neighbors == 2) {
-			next_step_chunk[i] = rank_chunk[i];
-		} else {
-			next_step_chunk[i] = CELL_DEAD;
-		}
+		next_step_chunk[i] = (alive_neighbors == 3 || alive_neighbors == 2) ? CELL_ALIVE : CELL_DEAD;
 	}
 	return next_step_chunk;
 }
@@ -278,11 +242,7 @@ PGM_HOLDER evolve_static(PGM_HOLDER& rank_chunk, mpi::communicator world)
 inline __attribute__((always_inline)) void update_cell_ordered(PGM_HOLDER& rank_chunk, ulong j)
 {
 	char alive_neighbors = count_alive_neighbors(rank_chunk, j);
-	if (alive_neighbors == 3) {
-		rank_chunk[j] = CELL_ALIVE;
-	} else if (alive_neighbors != 2) {
-		rank_chunk[j] = CELL_DEAD;
-	}
+	rank_chunk[j] = (alive_neighbors == 3 || alive_neighbors == 2) ? CELL_ALIVE : CELL_DEAD;
 }
 
 PGM_HOLDER evolve_ordered(PGM_HOLDER& rank_chunk, mpi::communicator world)
