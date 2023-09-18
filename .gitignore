@@ -1,6 +1,6 @@
 *.pgm
 out/
-gol
+gol*
 .cproject
 .kdev4/
 .project
