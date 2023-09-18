@@ -32,9 +32,9 @@
 #define SEND_FIRST_ROW \
 	world.isend(prev_rank, FIRST_ROW_OF_SENDING_RANK, rank_chunk.data() + grid_size, grid_size);
 #define RECEIVE_TOP_HALO \
-	world.recv(prev_rank, LAST_ROW_OF_SENDING_RANK, rank_chunk.data(), grid_size);
+	world.irecv(prev_rank, LAST_ROW_OF_SENDING_RANK, rank_chunk.data(), grid_size);
 #define RECEIVE_BOTTOM_HALO \
-	world.recv(next_rank, FIRST_ROW_OF_SENDING_RANK, rank_chunk.data() + (rank_rows + 1) * grid_size, grid_size);
+	world.irecv(next_rank, FIRST_ROW_OF_SENDING_RANK, rank_chunk.data() + (rank_rows + 1) * grid_size, grid_size);
 
 namespace mpi = boost::mpi;
 namespace mt  = mpi::threading;
@@ -131,38 +131,158 @@ inline __attribute__((always_inline)) char count_alive_neighbors(PGM_HOLDER& ran
 void evolve_static(PGM_HOLDER& rank_chunk, PGM_HOLDER& next_step_chunk, mpi::communicator world)
 {
 	const ulong rank_rows = (rank_chunk.size() / grid_size) - 2; // minus 2 halo rows
+	const auto start = grid_size*2, end = (rank_rows) * grid_size;
+	ulong i = 0;
 	if (world.size() != 1) {
 		if (world.rank()) {
 			SEND_FIRST_ROW;
 			SEND_LAST_ROW;
-			RECEIVE_TOP_HALO;
-			RECEIVE_BOTTOM_HALO;
+			mpi::request top_recv_request = RECEIVE_TOP_HALO;
+			mpi::request bottom_recv_request = RECEIVE_BOTTOM_HALO;
+
+			#pragma omp parallel for shared(rank_chunk, next_step_chunk)
+			for (i = start; i < end; i += 4) {
+				const auto next_1 = i+1, next_2 = i+2, next_3 = i+3;
+				char alive_neighbors = count_alive_neighbors(rank_chunk, i);
+				char alive_neighbors_1 = count_alive_neighbors(rank_chunk, next_1);
+				char alive_neighbors_2 = count_alive_neighbors(rank_chunk, next_2);
+				char alive_neighbors_3 = count_alive_neighbors(rank_chunk, next_3);
+				next_step_chunk[i] = (alive_neighbors == 3 || alive_neighbors == 2) ? CELL_ALIVE : CELL_DEAD;
+				next_step_chunk[next_1] = (alive_neighbors_1 == 3 || alive_neighbors_1 == 2) ? CELL_ALIVE : CELL_DEAD;
+				next_step_chunk[next_2] = (alive_neighbors_2 == 3 || alive_neighbors_2 == 2) ? CELL_ALIVE : CELL_DEAD;
+				next_step_chunk[next_3] = (alive_neighbors_3 == 3 || alive_neighbors_3 == 2) ? CELL_ALIVE : CELL_DEAD;
+			}
+			if (i != end) {
+				i = i - 3;
+				for (; i < end; i++) {
+					char alive_neighbors = count_alive_neighbors(rank_chunk, i);
+					next_step_chunk[i] = (alive_neighbors == 3 || alive_neighbors == 2) ? CELL_ALIVE : CELL_DEAD;
+				}
+			}
+
+
+			top_recv_request.wait();
+			bottom_recv_request.wait();
+
+			// top row update
+			#pragma omp parallel for shared(rank_chunk, next_step_chunk)
+			for (i = grid_size; i < start; i += 4) {
+				const auto next_1 = i+1, next_2 = i+2, next_3 = i+3;
+				char alive_neighbors = count_alive_neighbors(rank_chunk, i);
+				char alive_neighbors_1 = count_alive_neighbors(rank_chunk, next_1);
+				char alive_neighbors_2 = count_alive_neighbors(rank_chunk, next_2);
+				char alive_neighbors_3 = count_alive_neighbors(rank_chunk, next_3);
+				next_step_chunk[i] = (alive_neighbors == 3 || alive_neighbors == 2) ? CELL_ALIVE : CELL_DEAD;
+				next_step_chunk[next_1] = (alive_neighbors_1 == 3 || alive_neighbors_1 == 2) ? CELL_ALIVE : CELL_DEAD;
+				next_step_chunk[next_2] = (alive_neighbors_2 == 3 || alive_neighbors_2 == 2) ? CELL_ALIVE : CELL_DEAD;
+				next_step_chunk[next_3] = (alive_neighbors_3 == 3 || alive_neighbors_3 == 2) ? CELL_ALIVE : CELL_DEAD;
+			}
+			if (i != start) {
+				i = i - 3;
+				for (; i < start; i++) {
+					char alive_neighbors = count_alive_neighbors(rank_chunk, i);
+					next_step_chunk[i] = (alive_neighbors == 3 || alive_neighbors == 2) ? CELL_ALIVE : CELL_DEAD;
+				}
+			}
+
+			// bottom row update
+			#pragma omp parallel for shared(rank_chunk, next_step_chunk)
+			for (i = end; i < end + grid_size; i += 4) {
+				const auto next_1 = i+1, next_2 = i+2, next_3 = i+3;
+				char alive_neighbors = count_alive_neighbors(rank_chunk, i);
+				char alive_neighbors_1 = count_alive_neighbors(rank_chunk, next_1);
+				char alive_neighbors_2 = count_alive_neighbors(rank_chunk, next_2);
+				char alive_neighbors_3 = count_alive_neighbors(rank_chunk, next_3);
+				next_step_chunk[i] = (alive_neighbors == 3 || alive_neighbors == 2) ? CELL_ALIVE : CELL_DEAD;
+				next_step_chunk[next_1] = (alive_neighbors_1 == 3 || alive_neighbors_1 == 2) ? CELL_ALIVE : CELL_DEAD;
+				next_step_chunk[next_2] = (alive_neighbors_2 == 3 || alive_neighbors_2 == 2) ? CELL_ALIVE : CELL_DEAD;
+				next_step_chunk[next_3] = (alive_neighbors_3 == 3 || alive_neighbors_3 == 2) ? CELL_ALIVE : CELL_DEAD;
+			}
+			if (i != end + grid_size) {
+				i = i - 3;
+				for (; i < end + grid_size; i++) {
+					char alive_neighbors = count_alive_neighbors(rank_chunk, i);
+					next_step_chunk[i] = (alive_neighbors == 3 || alive_neighbors == 2) ? CELL_ALIVE : CELL_DEAD;
+				}
+			}
+
+
+
+
 		} else {
-			RECEIVE_TOP_HALO;
-			RECEIVE_BOTTOM_HALO;
+			mpi::request top_recv_request = RECEIVE_TOP_HALO;
+			mpi::request bottom_recv_request = RECEIVE_BOTTOM_HALO;
 			SEND_FIRST_ROW;
 			SEND_LAST_ROW;
-		}
-	}
-	const auto start = grid_size, end = (rank_rows + 1) * grid_size;
-	ulong i = 0;
-#pragma omp parallel for shared(rank_chunk, next_step_chunk)
-	for (i = start; i < end; i += 4) {
-		const auto next_1 = i+1, next_2 = i+2, next_3 = i+3;
-		char alive_neighbors = count_alive_neighbors(rank_chunk, i);
-		char alive_neighbors_1 = count_alive_neighbors(rank_chunk, next_1);
-		char alive_neighbors_2 = count_alive_neighbors(rank_chunk, next_2);
-		char alive_neighbors_3 = count_alive_neighbors(rank_chunk, next_3);
-		next_step_chunk[i] = (alive_neighbors == 3 || alive_neighbors == 2) ? CELL_ALIVE : CELL_DEAD;
-		next_step_chunk[next_1] = (alive_neighbors_1 == 3 || alive_neighbors_1 == 2) ? CELL_ALIVE : CELL_DEAD;
-		next_step_chunk[next_2] = (alive_neighbors_2 == 3 || alive_neighbors_2 == 2) ? CELL_ALIVE : CELL_DEAD;
-		next_step_chunk[next_3] = (alive_neighbors_3 == 3 || alive_neighbors_3 == 2) ? CELL_ALIVE : CELL_DEAD;
-	}
-	if (i != end) {
-		i = i - 3;
-		for (; i < end; i++) {
-			char alive_neighbors = count_alive_neighbors(rank_chunk, i);
-			next_step_chunk[i] = (alive_neighbors == 3 || alive_neighbors == 2) ? CELL_ALIVE : CELL_DEAD;
+
+
+			#pragma omp parallel for shared(rank_chunk, next_step_chunk)
+			for (i = start; i < end; i += 4) {
+				const auto next_1 = i+1, next_2 = i+2, next_3 = i+3;
+				char alive_neighbors = count_alive_neighbors(rank_chunk, i);
+				char alive_neighbors_1 = count_alive_neighbors(rank_chunk, next_1);
+				char alive_neighbors_2 = count_alive_neighbors(rank_chunk, next_2);
+				char alive_neighbors_3 = count_alive_neighbors(rank_chunk, next_3);
+				next_step_chunk[i] = (alive_neighbors == 3 || alive_neighbors == 2) ? CELL_ALIVE : CELL_DEAD;
+				next_step_chunk[next_1] = (alive_neighbors_1 == 3 || alive_neighbors_1 == 2) ? CELL_ALIVE : CELL_DEAD;
+				next_step_chunk[next_2] = (alive_neighbors_2 == 3 || alive_neighbors_2 == 2) ? CELL_ALIVE : CELL_DEAD;
+				next_step_chunk[next_3] = (alive_neighbors_3 == 3 || alive_neighbors_3 == 2) ? CELL_ALIVE : CELL_DEAD;
+			}
+			if (i != end) {
+				i = i - 3;
+				for (; i < end; i++) {
+					char alive_neighbors = count_alive_neighbors(rank_chunk, i);
+					next_step_chunk[i] = (alive_neighbors == 3 || alive_neighbors == 2) ? CELL_ALIVE : CELL_DEAD;
+				}
+			}
+
+			top_recv_request.wait();
+			bottom_recv_request.wait();
+
+
+
+						// top row update
+			#pragma omp parallel for shared(rank_chunk, next_step_chunk)
+			for (i = grid_size; i < start; i += 4) {
+				const auto next_1 = i+1, next_2 = i+2, next_3 = i+3;
+				char alive_neighbors = count_alive_neighbors(rank_chunk, i);
+				char alive_neighbors_1 = count_alive_neighbors(rank_chunk, next_1);
+				char alive_neighbors_2 = count_alive_neighbors(rank_chunk, next_2);
+				char alive_neighbors_3 = count_alive_neighbors(rank_chunk, next_3);
+				next_step_chunk[i] = (alive_neighbors == 3 || alive_neighbors == 2) ? CELL_ALIVE : CELL_DEAD;
+				next_step_chunk[next_1] = (alive_neighbors_1 == 3 || alive_neighbors_1 == 2) ? CELL_ALIVE : CELL_DEAD;
+				next_step_chunk[next_2] = (alive_neighbors_2 == 3 || alive_neighbors_2 == 2) ? CELL_ALIVE : CELL_DEAD;
+				next_step_chunk[next_3] = (alive_neighbors_3 == 3 || alive_neighbors_3 == 2) ? CELL_ALIVE : CELL_DEAD;
+			}
+			if (i != start) {
+				i = i - 3;
+				for (; i < start; i++) {
+					char alive_neighbors = count_alive_neighbors(rank_chunk, i);
+					next_step_chunk[i] = (alive_neighbors == 3 || alive_neighbors == 2) ? CELL_ALIVE : CELL_DEAD;
+				}
+			}
+
+			// bottom row update
+			#pragma omp parallel for shared(rank_chunk, next_step_chunk)
+			for (i = end; i < end + grid_size; i += 4) {
+				const auto next_1 = i+1, next_2 = i+2, next_3 = i+3;
+				char alive_neighbors = count_alive_neighbors(rank_chunk, i);
+				char alive_neighbors_1 = count_alive_neighbors(rank_chunk, next_1);
+				char alive_neighbors_2 = count_alive_neighbors(rank_chunk, next_2);
+				char alive_neighbors_3 = count_alive_neighbors(rank_chunk, next_3);
+				next_step_chunk[i] = (alive_neighbors == 3 || alive_neighbors == 2) ? CELL_ALIVE : CELL_DEAD;
+				next_step_chunk[next_1] = (alive_neighbors_1 == 3 || alive_neighbors_1 == 2) ? CELL_ALIVE : CELL_DEAD;
+				next_step_chunk[next_2] = (alive_neighbors_2 == 3 || alive_neighbors_2 == 2) ? CELL_ALIVE : CELL_DEAD;
+				next_step_chunk[next_3] = (alive_neighbors_3 == 3 || alive_neighbors_3 == 2) ? CELL_ALIVE : CELL_DEAD;
+			}
+			if (i != end + grid_size) {
+				i = i - 3;
+				for (; i < end + grid_size; i++) {
+					char alive_neighbors = count_alive_neighbors(rank_chunk, i);
+					next_step_chunk[i] = (alive_neighbors == 3 || alive_neighbors == 2) ? CELL_ALIVE : CELL_DEAD;
+				}
+			}
+
 		}
 	}
 }
