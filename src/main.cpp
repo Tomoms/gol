@@ -145,25 +145,33 @@ void evolve_static(PGM_HOLDER& rank_chunk, PGM_HOLDER& next_step_chunk, mpi::com
 		}
 	}
 	const auto start = grid_size, end = (rank_rows + 1) * grid_size;
-	ulong i = 0;
-#pragma omp parallel for shared(rank_chunk, next_step_chunk)
-	for (i = start; i < end; i += 4) {
-		const auto next_1 = i+1, next_2 = i+2, next_3 = i+3;
-		char alive_neighbors = count_alive_neighbors(rank_chunk, i);
-		char alive_neighbors_1 = count_alive_neighbors(rank_chunk, next_1);
-		char alive_neighbors_2 = count_alive_neighbors(rank_chunk, next_2);
-		char alive_neighbors_3 = count_alive_neighbors(rank_chunk, next_3);
-		next_step_chunk[i] = (alive_neighbors == 3 || alive_neighbors == 2) ? CELL_ALIVE : CELL_DEAD;
-		next_step_chunk[next_1] = (alive_neighbors_1 == 3 || alive_neighbors_1 == 2) ? CELL_ALIVE : CELL_DEAD;
-		next_step_chunk[next_2] = (alive_neighbors_2 == 3 || alive_neighbors_2 == 2) ? CELL_ALIVE : CELL_DEAD;
-		next_step_chunk[next_3] = (alive_neighbors_3 == 3 || alive_neighbors_3 == 2) ? CELL_ALIVE : CELL_DEAD;
-	}
-	if (i != end) {
-		i = i - 3;
-		for (; i < end; i++) {
+	const auto elements = end - start;
+	const ulong elements_per_thread = elements / nthreads;
+#pragma omp taskloop shared(rank_chunk, next_step_chunk) grainsize(1)
+	for (auto j = start; j < nthreads * elements_per_thread; j += elements_per_thread) {
+		auto i = j;
+		for (; i < j + elements_per_thread; i += 4) {
+			const auto next_1 = i+1, next_2 = i+2, next_3 = i+3;
 			char alive_neighbors = count_alive_neighbors(rank_chunk, i);
+			char alive_neighbors_1 = count_alive_neighbors(rank_chunk, next_1);
+			char alive_neighbors_2 = count_alive_neighbors(rank_chunk, next_2);
+			char alive_neighbors_3 = count_alive_neighbors(rank_chunk, next_3);
 			next_step_chunk[i] = (alive_neighbors == 3 || alive_neighbors == 2) ? CELL_ALIVE : CELL_DEAD;
+			next_step_chunk[next_1] = (alive_neighbors_1 == 3 || alive_neighbors_1 == 2) ? CELL_ALIVE : CELL_DEAD;
+			next_step_chunk[next_2] = (alive_neighbors_2 == 3 || alive_neighbors_2 == 2) ? CELL_ALIVE : CELL_DEAD;
+			next_step_chunk[next_3] = (alive_neighbors_3 == 3 || alive_neighbors_3 == 2) ? CELL_ALIVE : CELL_DEAD;
 		}
+		if (i != j + elements_per_thread) {
+			i = i - 4 + 1;
+			for (; i < j + elements_per_thread; i++) {
+				char alive_neighbors = count_alive_neighbors(rank_chunk, i);
+				next_step_chunk[i] = (alive_neighbors == 3 || alive_neighbors == 2) ? CELL_ALIVE : CELL_DEAD;
+			}
+		}
+	}
+	for (auto i = start + nthreads * elements_per_thread; i < end; i++) {
+		char alive_neighbors = count_alive_neighbors(rank_chunk, i);
+		next_step_chunk[i] = (alive_neighbors == 3 || alive_neighbors == 2) ? CELL_ALIVE : CELL_DEAD;
 	}
 }
 
@@ -302,6 +310,10 @@ int main(int argc, char **argv)
 		PGM_HOLDER rank_chunk = PgmUtils::read_chunk_from_file(filename, rank_rows * grid_size, rank_file_offset_streampos, grid_size, static_cast<MPI_Comm>(world));
 		PGM_HOLDER next_step_chunk(rank_chunk.size());
 
+#pragma omp parallel
+{
+#pragma omp master
+{
 		nthreads = omp_get_num_threads();
 		for (uint i = 1; i <= simulation_steps; i++) {
 			evolver(rank_chunk, next_step_chunk, world);
@@ -316,7 +328,8 @@ int main(int argc, char **argv)
 				}
 			}
 		}
-
+}
+}
 		double elapsed = timer.elapsed();
 		double avg = mpi::all_reduce(world, elapsed, std::plus<double>());
 		avg = avg / world.size();
